@@ -1,32 +1,30 @@
-#include <list>
+#include <iostream>
 #include <string>
-#include "parser/CliParser.h"
-#include "datatypes/CliStruct.h"
-#include "datatypes/Context.h"
-#include "processor/ContextProcessor.h"
-#include "Executer.h"
+#include <vector>
 
-
-const std::string VERSION = "v0.1.0";
-
+#include "app/AppRunner.h"
+#include "cli/CommandParser.h"
+#include "support/Diagnostic.h"
 
 int main(int argc, char** argv) {
-        try {
-                std::list<std::string> args;
-                for(int i = 1; i < argc; ++i) {
-                        args.push_back(argv[i]);
-                } 
-
-                prebyte::CliParser cli_parser;
-                prebyte::CliStruct cli_struct = cli_parser.parse(args);
-                std::unique_ptr<prebyte::Context> context = std::make_unique<prebyte::Context>();
-                prebyte::ContextProcessor context_processor(cli_struct, std::move(context));
-                context = context_processor.process();
-                prebyte::Executer executer(std::move(context));
-                executer.execute();
-        } catch (const std::exception& e) {
-                std::cerr << "Error: " << e.what() << std::endl;
-                return 1;
+    try {
+        std::vector<std::string> args;
+        args.reserve(argc > 1 ? static_cast<std::size_t>(argc - 1) : 0U);
+        for (int index = 1; index < argc; ++index) {
+            args.emplace_back(argv[index]);
         }
+
+        prebyte::CommandParser parser;
+        prebyte::Command command = parser.parse(args);
+
+        prebyte::AppRunner runner;
+        runner.run(command);
         return 0;
+    } catch (const prebyte::DiagnosticError& error) {
+        std::cerr << error.what() << '\n';
+    } catch (const std::exception& error) {
+        std::cerr << "error[UNEXPECTED]: " << error.what() << '\n';
+    }
+
+    return 1;
 }

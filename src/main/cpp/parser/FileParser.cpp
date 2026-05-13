@@ -15,12 +15,8 @@ Data FileParser::parse(const std::string& filePath) {
 
     if (filePath.ends_with(".json")) {
         parser = new JsonParser();
-    } else if (filePath.ends_with(".xml")) {
-        parser = new XmlParser();
     } else if (filePath.ends_with(".yaml") || filePath.ends_with(".yml")) {
         parser = new YamlParser();
-    } else if (filePath.ends_with(".csv")) {
-        parser = new CsvParser();
     } else if (filePath.ends_with(".ini") || filePath.ends_with(".cfg")) {
         parser = new IniParser();
     } else if (filePath.ends_with(".env")) {

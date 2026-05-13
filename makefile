@@ -1,14 +1,31 @@
-TOML_PATH = ${HOME}/.rqp/cpptoml/include
-start:
-	mkdir -p build
-	clang++ -std=c++23 -I$(TOML_PATH) -Isrc/main/include -O3 -o build/prebyte src/main/cpp/Executer.cpp src/main/cpp/main.cpp src/main/cpp/datatypes/*.cpp src/main/cpp/parser/*.cpp src/main/cpp/processor/*.cpp -lpugixml -lyaml-cpp -lfmt
+.PHONY: all start run test benchmark compare-benchmark configure clean
 
-run:
-	./build/prebyte
+CMAKE_PRESET ?= dev
+CMAKE_BUILD_DIR := build-cmake/dev
+COMPARE_DIR := tools/benchmark_compare
+
+all: start
+
+configure:
+	cmake --preset $(CMAKE_PRESET)
+
+start: configure
+	cmake --build --preset $(CMAKE_PRESET) --target prebyte
+
+run: start
+	./$(CMAKE_BUILD_DIR)/prebyte
+
+test: configure
+	cmake --build --preset $(CMAKE_PRESET) --target prebyte_tests
+	ctest --preset $(CMAKE_PRESET)
+
+benchmark: configure
+	cmake --build --preset $(CMAKE_PRESET) --target prebyte_benchmarks
+	./$(CMAKE_BUILD_DIR)/prebyte_benchmarks
+	$(MAKE) compare-benchmark
+
+compare-benchmark: configure
+	cmake --build --preset $(CMAKE_PRESET) --target compare-benchmark
 
 clean:
-	rm -rf build
-
-lib:
-	mkdir -p build
-	clang++ -std=c++23 -I$(TOML_PATH) -Isrc/main/include -O3 -shared -fPIC -o build/libprebyte.so src/main/cpp/Executer.cpp src/main/cpp/PrebyteEngine.cpp src/main/cpp/datatypes/*.cpp src/main/cpp/parser/*.cpp src/main/cpp/processor/*.cpp -lpugixml -lyaml-cpp -lfmt
+	rm -rf build build-cmake "$(COMPARE_DIR)/bench_prebyte"

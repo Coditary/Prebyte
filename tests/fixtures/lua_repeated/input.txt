@@ -1,0 +1,2 @@
+{{ lua "return upper(name)" }}
+{{ lua "return upper(name)" }}

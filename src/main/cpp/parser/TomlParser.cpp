@@ -1,76 +1,148 @@
 #include "parser/TomlParser.h"
 
+#include "support/TextUtil.h"
+
+#include <fstream>
+#include <iterator>
+#include <regex>
+#include <sstream>
 
 namespace prebyte {
 
-Data convert_toml_value(const std::shared_ptr<cpptoml::base>& val);
+namespace {
 
-Data convert_array(const std::shared_ptr<cpptoml::array>& arr) {
-    Data::Array array;
-    for (const auto& elem : *arr) {
-        array.push_back(convert_toml_value(elem));
+Data parse_toml_value(const std::string& raw) {
+    const std::string value = text::trim(raw);
+    if (value == "true") {
+        return Data(true);
     }
-    return Data(array);
+    if (value == "false") {
+        return Data(false);
+    }
+    if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
+        return Data(value.substr(1, value.size() - 2));
+    }
+    if (value.size() >= 2 && value.front() == '[' && value.back() == ']') {
+        Data::Array array;
+        const std::string inner = value.substr(1, value.size() - 2);
+        for (const std::string& item : text::split(inner, ',')) {
+            const std::string trimmed = text::trim(item);
+            if (!trimmed.empty()) {
+                array.push_back(parse_toml_value(trimmed));
+            }
+        }
+        return Data(std::move(array));
+    }
+
+    static const std::regex int_regex(R"(^-?\d+$)");
+    static const std::regex double_regex(R"(^-?\d+\.\d+$)");
+    if (std::regex_match(value, int_regex)) {
+        return Data(std::stoi(value));
+    }
+    if (std::regex_match(value, double_regex)) {
+        return Data(std::stod(value));
+    }
+    return Data(value);
 }
 
-Data convert_table(const std::shared_ptr<cpptoml::table>& table) {
-    Data::Map map;
-    for (const auto& [key, value] : *table) {
-        map[key] = convert_toml_value(value);
+void ensure_map(Data& data) {
+    if (data.is_null()) {
+        data = Data(Data::Map{});
     }
-    return Data(map);
+    if (!data.is_map()) {
+        throw std::runtime_error("Expected TOML table");
+    }
 }
 
-Data convert_toml_value(const std::shared_ptr<cpptoml::base>& val) {
-    if (auto v = val->as<std::string>()) {
-        return Data(v->get());
-    } else if (auto v = val->as<int64_t>()) {
-        return Data(static_cast<int>(v->get()));
-    } else if (auto v = val->as<double>()) {
-        return Data(v->get());
-    } else if (auto v = val->as<bool>()) {
-        return Data(v->get());
-    } else if (auto v = val->as_array()){
-        return convert_array(v);
-    } else if (auto v = val->as_table()) {
-        return convert_table(v);
+void set_nested_value(Data& root, const std::vector<std::string>& path, const Data& value) {
+    ensure_map(root);
+    Data* current = &root;
+    for (std::size_t index = 0; index + 1 < path.size(); ++index) {
+        ensure_map(*current);
+        Data& next = (*current)[path[index]];
+        ensure_map(next);
+        current = &next;
     }
+    ensure_map(*current);
+    (*current)[path.back()] = value;
+}
 
-    return Data();  // fallback null
+std::string strip_comment(const std::string& line) {
+    bool in_string = false;
+    std::string result;
+    for (char ch : line) {
+        if (ch == '"') {
+            in_string = !in_string;
+        }
+        if (ch == '#' && !in_string) {
+            break;
+        }
+        result.push_back(ch);
+    }
+    return result;
+}
+
+std::string read_file(const std::filesystem::path& path) {
+    std::ifstream stream(path);
+    if (!stream) {
+        throw std::runtime_error("Could not open TOML file: " + path.string());
+    }
+    return std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
+}
+
 }
 
 Data TomlParser::parse(const std::filesystem::path& filepath) {
-    try {
-        auto table = cpptoml::parse_file(filepath.string());
-        return convert_table(table);
-    } catch (const std::exception& e) {
-        throw std::runtime_error("Failed to parse TOML: " + std::string(e.what()));
-    }
+    return parse_string(read_file(filepath));
 }
 
 bool TomlParser::can_parse(const std::filesystem::path& filepath) const {
-    if (filepath.extension() != ".toml") return false;
-
-    std::ifstream file(filepath);
-    if (!file.is_open()) return false;
-
+    if (filepath.extension() != ".toml") {
+        return false;
+    }
     try {
-        cpptoml::parse_file(filepath.string());
+        TomlParser parser;
+        parser.parse(filepath);
+        return true;
     } catch (...) {
         return false;
     }
-
-    return true;
 }
 
-Data TomlParser::parse_string(const std::string& input) {
-        try {
-                std::istringstream input_stream(input);
-                auto table = cpptoml::parser(input_stream).parse();
-                return convert_table(table);
-        } catch (const std::exception& e) {
-                throw std::runtime_error("Failed to parse TOML string: " + std::string(e.what()));
+Data TomlParser::parse_string(const std::string& toml_string) {
+    Data root(Data::Map{});
+    std::vector<std::string> current_section;
+    std::istringstream stream(toml_string);
+    std::string line;
+
+    while (std::getline(stream, line)) {
+        line = text::trim(strip_comment(line));
+        if (line.empty()) {
+            continue;
         }
+
+        if (line.front() == '[' && line.back() == ']') {
+            current_section = text::split(line.substr(1, line.size() - 2), '.');
+            for (std::string& part : current_section) {
+                part = text::trim(part);
+            }
+            continue;
+        }
+
+        const std::size_t equals = line.find('=');
+        if (equals == std::string::npos) {
+            throw std::runtime_error("Invalid TOML line: " + line);
+        }
+
+        std::vector<std::string> key_path = current_section;
+        std::vector<std::string> keys = text::split(line.substr(0, equals), '.');
+        for (std::string& key : keys) {
+            key_path.push_back(text::trim(key));
+        }
+        set_nested_value(root, key_path, parse_toml_value(line.substr(equals + 1)));
+    }
+
+    return root;
 }
 
-} // namespace prebyte
+}

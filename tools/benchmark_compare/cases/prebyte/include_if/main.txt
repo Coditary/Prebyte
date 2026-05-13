@@ -1,0 +1,3 @@
+{{ include "header.txt" }}
+{{ if enabled }}Enabled{{ else }}Disabled{{ endif }}
+Footer

@@ -1,0 +1,51 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 31,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "dev",
+      "displayName": "Dev Ninja",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-cmake/dev",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "PREBYTE_BUILD_TESTS": "ON",
+        "PREBYTE_BUILD_BENCHMARKS": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev"
+    },
+    {
+      "name": "dev-tests",
+      "configurePreset": "dev",
+      "targets": ["prebyte_tests"]
+    },
+    {
+      "name": "dev-benchmarks",
+      "configurePreset": "dev",
+      "targets": ["prebyte_benchmarks"]
+    },
+    {
+      "name": "dev-compare-benchmark",
+      "configurePreset": "dev",
+      "targets": ["compare-benchmark"]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

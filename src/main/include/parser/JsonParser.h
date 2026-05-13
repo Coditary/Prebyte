@@ -1,7 +1,7 @@
 #pragma once
 
 #include <fstream>
-#include <nlohmann/json.hpp>
+#include <string>
 
 #include "parser/Parser.h"
 

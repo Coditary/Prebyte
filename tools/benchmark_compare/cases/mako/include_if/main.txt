@@ -1,0 +1,3 @@
+<%include file="header.txt"/>
+${'Enabled' if enabled else 'Disabled'}
+Footer

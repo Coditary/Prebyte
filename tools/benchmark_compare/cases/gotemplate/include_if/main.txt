@@ -1,0 +1,3 @@
+{{ template "header.txt" . }}
+{{ if .Enabled }}Enabled{{ else }}Disabled{{ end }}
+Footer
