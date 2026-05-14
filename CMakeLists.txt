@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.31)
 
 project(Prebyte VERSION 1.0.0 LANGUAGES CXX)
 
+include(CTest)
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -104,10 +106,37 @@ if(PREBYTE_BUILD_TESTS)
         endif()
     endif()
 
-    include(CTest)
     enable_testing()
-    add_test(NAME prebyte_tests COMMAND prebyte_tests)
-    set_tests_properties(prebyte_tests PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+    set(PREBYTE_TEST_DISCOVERY_SOURCES
+        ${TEST_UNIT_SOURCES}
+        ${TEST_INTEGRATION_SOURCES}
+    )
+    set(PREBYTE_DISCOVERED_TEST_NAMES)
+
+    foreach(PREBYTE_TEST_SOURCE IN LISTS PREBYTE_TEST_DISCOVERY_SOURCES)
+        file(STRINGS ${PREBYTE_TEST_SOURCE} PREBYTE_TEST_DECLARATIONS REGEX "^[ \t]*TEST_CASE\\([A-Za-z_][A-Za-z0-9_]*\\)")
+
+        foreach(PREBYTE_TEST_DECLARATION IN LISTS PREBYTE_TEST_DECLARATIONS)
+            string(REGEX MATCH "TEST_CASE\\(([A-Za-z_][A-Za-z0-9_]*)\\)" PREBYTE_TEST_MATCH "${PREBYTE_TEST_DECLARATION}")
+            set(PREBYTE_TEST_NAME ${CMAKE_MATCH_1})
+
+            if(PREBYTE_TEST_NAME STREQUAL "")
+                continue()
+            endif()
+
+            if(PREBYTE_TEST_NAME IN_LIST PREBYTE_DISCOVERED_TEST_NAMES)
+                continue()
+            endif()
+
+            list(APPEND PREBYTE_DISCOVERED_TEST_NAMES ${PREBYTE_TEST_NAME})
+            add_test(
+                NAME ${PREBYTE_TEST_NAME}
+                COMMAND $<TARGET_FILE:prebyte_tests> --run-test ${PREBYTE_TEST_NAME}
+            )
+            set_tests_properties(${PREBYTE_TEST_NAME} PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+        endforeach()
+    endforeach()
 endif()
 
 if(PREBYTE_BUILD_BENCHMARKS)

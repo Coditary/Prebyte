@@ -17,6 +17,8 @@ struct TestCase {
 };
 
 std::vector<TestCase>& registry();
+const TestCase* find_test(std::string_view name);
+std::vector<std::string> test_names();
 
 struct TestRegistrar {
     TestRegistrar(std::string name, TestFunction function);
@@ -40,6 +42,7 @@ private:
 };
 
 int run_all_tests();
+int run_test_by_name(std::string_view name);
 
 template<typename Left, typename Right>
 void assert_equal(const Left& left, const Right& right, const char* left_expr, const char* right_expr,

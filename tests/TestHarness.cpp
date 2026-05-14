@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <string_view>
 
 namespace prebyte::test {
 
@@ -28,6 +29,24 @@ bool unset_environment_variable(const std::string& name) {
 std::vector<TestCase>& registry() {
     static std::vector<TestCase> tests;
     return tests;
+}
+
+const TestCase* find_test(std::string_view name) {
+    for (const TestCase& test_case : registry()) {
+        if (test_case.name == name) {
+            return &test_case;
+        }
+    }
+    return nullptr;
+}
+
+std::vector<std::string> test_names() {
+    std::vector<std::string> names;
+    names.reserve(registry().size());
+    for (const TestCase& test_case : registry()) {
+        names.push_back(test_case.name);
+    }
+    return names;
 }
 
 TestRegistrar::TestRegistrar(std::string name, TestFunction function) {
@@ -68,6 +87,23 @@ int run_all_tests() {
     }
     std::cout << "Ran " << registry().size() << " tests\n";
     return failed == 0 ? 0 : 1;
+}
+
+int run_test_by_name(std::string_view name) {
+    const TestCase* test_case = find_test(name);
+    if (test_case == nullptr) {
+        std::cerr << "[FAIL] Unknown test: " << name << '\n';
+        return 1;
+    }
+
+    try {
+        test_case->function();
+        std::cout << "[PASS] " << test_case->name << '\n';
+        return 0;
+    } catch (const std::exception& error) {
+        std::cerr << "[FAIL] " << test_case->name << " - " << error.what() << '\n';
+        return 1;
+    }
 }
 
 }
