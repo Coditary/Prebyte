@@ -13,6 +13,16 @@ namespace {
 
 constexpr auto kMetadataCacheTtl = std::chrono::milliseconds(250);
 
+std::int64_t stat_mtime_ticks(const struct stat& info) {
+#if defined(__APPLE__)
+    return static_cast<std::int64_t>(info.st_mtimespec.tv_sec) * 1000000000LL
+        + static_cast<std::int64_t>(info.st_mtimespec.tv_nsec);
+#else
+    return static_cast<std::int64_t>(info.st_mtim.tv_sec) * 1000000000LL
+        + static_cast<std::int64_t>(info.st_mtim.tv_nsec);
+#endif
+}
+
 const std::filesystem::path& current_working_directory() {
     static const std::filesystem::path cwd = []() {
         std::error_code error;
@@ -90,8 +100,7 @@ FileMetadata FileMetadataCache::stat_path(const std::filesystem::path& path) con
     if (::stat(path.c_str(), &info) == 0) {
         return FileMetadata{
             .exists = true,
-            .mtime_ticks = static_cast<std::int64_t>(info.st_mtim.tv_sec) * 1000000000LL
-                + static_cast<std::int64_t>(info.st_mtim.tv_nsec),
+            .mtime_ticks = stat_mtime_ticks(info),
         };
     }
 
