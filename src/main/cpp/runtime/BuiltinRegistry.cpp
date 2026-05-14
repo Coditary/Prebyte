@@ -103,11 +103,21 @@ std::string make_uuid(std::mt19937_64& rng) {
     return std::format("{:08x}-{:04x}-{:04x}-{:04x}-{:012x}", part1, part2, part3, part4, part5 & 0xffffffffffffULL);
 }
 
+std::tm local_time_for(std::time_t value) {
+    std::tm local_time{};
+#ifdef _WIN32
+    localtime_s(&local_time, &value);
+#else
+    localtime_r(&value, &local_time);
+#endif
+    return local_time;
+}
+
 RenderSession::BuiltinSnapshot make_snapshot() {
     RenderSession::BuiltinSnapshot snapshot;
     const auto now = std::chrono::system_clock::now();
     const std::time_t now_time = std::chrono::system_clock::to_time_t(now);
-    const std::tm local_time = *std::localtime(&now_time);
+    const std::tm local_time = local_time_for(now_time);
 
     snapshot.time = std::format("{:02}:{:02}:{:02}", local_time.tm_hour, local_time.tm_min, local_time.tm_sec);
     snapshot.date = format_iso_date(local_time);

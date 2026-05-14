@@ -1,0 +1,7 @@
+.git
+.github
+.cache
+build
+build-cmake
+dist
+compile_commands.json

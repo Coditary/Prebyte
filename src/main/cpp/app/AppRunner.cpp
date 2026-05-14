@@ -63,6 +63,14 @@ std::string format_lua_helper_signatures() {
     return stream.str();
 }
 
+const char* default_shared_include_root_hint() {
+#ifdef _WIN32
+    return "%LOCALAPPDATA%\\Prebyte\\share";
+#else
+    return "~/.local/share/prebyte";
+#endif
+}
+
 template <typename Range>
 std::string format_name_list(const Range& names) {
     std::ostringstream stream;
@@ -231,7 +239,9 @@ std::string AppRunner::list_ignores(const Command& command) const {
 std::string AppRunner::explain(const Command& command) const {
     const std::string topic = text::to_lower(command.explain_topic.value_or(""));
     if (topic == "rule" || topic == "rules") {
-        return "Rules: --rule name=value sets global rule. --rule .ext::name=value scopes by extension. --rule file::name=value scopes exact file. Include roots: repeatable --include-path/-I, settings include_paths, legacy include_path, then ~/.local/share/prebyte. List effective rules with 'list rules'. output_encoding supports utf-8 and utf-16 for file output only. error_on_false_input rejects falsey if/elseif conditions. Env rules: allow_env, forbidden_env_vars. Runtime limits: max_include_depth, max_render_time_ms, max_output_size_bytes, max_loop_iteration. Lua rules: lua_instruction_limit, lua_memory_limit_bytes.\n";
+        return "Rules: --rule name=value sets global rule. --rule .ext::name=value scopes by extension. --rule file::name=value scopes exact file. Include roots: repeatable --include-path/-I, settings include_paths, legacy include_path, then "
+            + std::string(default_shared_include_root_hint())
+            + ". List effective rules with 'list rules'. output_encoding supports utf-8 and utf-16 for file output only. error_on_false_input rejects falsey if/elseif conditions. Env rules: allow_env, forbidden_env_vars. Runtime limits: max_include_depth, max_render_time_ms, max_output_size_bytes, max_loop_iteration. Lua rules: lua_instruction_limit, lua_memory_limit_bytes.\n";
     }
     if (topic == "ignore" || topic == "ignores") {
         return "Ignore names suppress matching lookups during render. Sources merge from settings ignore, selected profiles, and --ignore/-i. Inspect effective names with 'list ignore' or 'list ignores'.\n";
@@ -271,7 +281,7 @@ std::string AppRunner::help() const {
             "  -- [args...] pass render args for stdin mode\n"
             "  list rules|vars|profiles|ignore|ignores [options]\n"
             "Render args: extra positional values after input, or after -- for stdin, available as ARGS[index].\n"
-            "Include roots: current file, CLI -I, settings include_paths, legacy include_path, ~/.local/share/prebyte. First matching root wins.\n"
+            "Include roots: current file, CLI -I, settings include_paths, legacy include_path, " << default_shared_include_root_hint() << ". First matching root wins.\n"
             "Output encoding: utf-8 or utf-16 for file output only (-o/--output).\n"
             "False input guard: error_on_false_input rejects falsey if/elseif conditions.\n"
             "Runtime limits: max_include_depth, max_render_time_ms, max_output_size_bytes, max_loop_iteration\n"

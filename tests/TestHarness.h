@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -24,6 +25,18 @@ struct TestRegistrar {
 class AssertionFailure : public std::runtime_error {
 public:
     explicit AssertionFailure(const std::string& message);
+};
+
+class ScopedEnvironmentVariable {
+public:
+    ScopedEnvironmentVariable(std::string name, std::string value);
+    ScopedEnvironmentVariable(const ScopedEnvironmentVariable&) = delete;
+    ScopedEnvironmentVariable& operator=(const ScopedEnvironmentVariable&) = delete;
+    ~ScopedEnvironmentVariable();
+
+private:
+    std::string name_;
+    std::optional<std::string> previous_value_;
 };
 
 int run_all_tests();

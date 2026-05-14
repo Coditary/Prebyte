@@ -1439,8 +1439,8 @@ TEST_CASE(Renderer_max_variable_length_rule_truncates_values) {
 }
 
 TEST_CASE(Renderer_allow_env_and_forbidden_env_vars_interaction) {
-    ::setenv("PREBYTE_ALLOWED_ENV", "Ada", 1);
-    ::setenv("PREBYTE_BLOCKED_ENV", "Secret", 1);
+    prebyte::test::ScopedEnvironmentVariable allowed_env("PREBYTE_ALLOWED_ENV", "Ada");
+    prebyte::test::ScopedEnvironmentVariable blocked_env("PREBYTE_BLOCKED_ENV", "Secret");
 
     prebyte::RuleResolver rule_resolver;
     prebyte::IncludeResolver include_resolver;

@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 3.31)
 
-project(Prebyte VERSION 0.2.0 LANGUAGES CXX)
+project(Prebyte VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+include(GNUInstallDirs)
 
 option(PREBYTE_BUILD_TESTS "Build test binary" ON)
 option(PREBYTE_BUILD_BENCHMARKS "Build benchmark binary" ON)
@@ -16,6 +18,14 @@ if(TARGET Lua::Lua)
     set(PREBYTE_LUA_TARGET Lua::Lua)
 else()
     set(PREBYTE_LUA_TARGET ${LUA_LIBRARIES})
+endif()
+
+set(PREBYTE_PLATFORM_LIBS)
+if(UNIX AND NOT APPLE)
+    list(APPEND PREBYTE_PLATFORM_LIBS m)
+endif()
+if(CMAKE_DL_LIBS)
+    list(APPEND PREBYTE_PLATFORM_LIBS ${CMAKE_DL_LIBS})
 endif()
 
 file(GLOB APP_SOURCES CONFIGURE_DEPENDS src/main/cpp/app/*.cpp)
@@ -57,17 +67,22 @@ target_include_directories(prebyte_core
 target_link_libraries(prebyte_core
     PUBLIC
         ${PREBYTE_LUA_TARGET}
-        m
-        dl
+        ${PREBYTE_PLATFORM_LIBS}
 )
 
 if(PREBYTE_ENABLE_COVERAGE)
-    target_compile_options(prebyte_core PUBLIC --coverage -O0 -g)
-    target_link_options(prebyte_core PUBLIC --coverage)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+        target_compile_options(prebyte_core PUBLIC --coverage -O0 -g)
+        target_link_options(prebyte_core PUBLIC --coverage)
+    else()
+        message(FATAL_ERROR "PREBYTE_ENABLE_COVERAGE requires GCC-compatible coverage flags")
+    endif()
 endif()
 
 add_executable(prebyte src/main/cpp/main.cpp)
 target_link_libraries(prebyte PRIVATE prebyte_core)
+install(TARGETS prebyte RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES README.md LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/prebyte)
 
 if(PREBYTE_BUILD_TESTS)
     file(GLOB TEST_UNIT_SOURCES CONFIGURE_DEPENDS tests/unit/*.cpp)
@@ -83,8 +98,10 @@ if(PREBYTE_BUILD_TESTS)
     target_link_libraries(prebyte_tests PRIVATE prebyte_core)
 
     if(PREBYTE_ENABLE_COVERAGE)
-        target_compile_options(prebyte_tests PRIVATE --coverage -O0 -g)
-        target_link_options(prebyte_tests PRIVATE --coverage)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+            target_compile_options(prebyte_tests PRIVATE --coverage -O0 -g)
+            target_link_options(prebyte_tests PRIVATE --coverage)
+        endif()
     endif()
 
     include(CTest)

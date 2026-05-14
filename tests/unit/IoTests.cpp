@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iostream>
 #include <optional>
+#include <sstream>
 #include <string>
 
 #ifdef __linux__
@@ -29,6 +30,23 @@ std::filesystem::path io_test_root(const std::string& name) {
     std::filesystem::create_directories(root);
     return root;
 }
+
+class ScopedStreamRedirect {
+public:
+    ScopedStreamRedirect(std::ios& stream, std::streambuf* replacement)
+        : stream_(stream), original_(stream.rdbuf(replacement)) {}
+
+    ScopedStreamRedirect(const ScopedStreamRedirect&) = delete;
+    ScopedStreamRedirect& operator=(const ScopedStreamRedirect&) = delete;
+
+    ~ScopedStreamRedirect() {
+        stream_.rdbuf(original_);
+    }
+
+private:
+    std::ios& stream_;
+    std::streambuf* original_ = nullptr;
+};
 
 #ifdef __linux__
 class ScopedFdRedirect {
@@ -122,24 +140,19 @@ TEST_CASE(InputReader_reads_file_and_wraps_missing_file_errors) {
     REQUIRE_THROWS_AS(reader.read(root / "missing.txt"), prebyte::DiagnosticError);
 }
 
-#ifdef __linux__
 TEST_CASE(InputReader_reads_stdin_when_no_path_is_given) {
-    int pipe_fds[2] = {-1, -1};
-    REQUIRE(::pipe(pipe_fds) == 0);
-    REQUIRE(::write(pipe_fds[1], "stdin-data", 10) == 10);
-    ::close(pipe_fds[1]);
-
     prebyte::InputReader reader;
+    std::istringstream stream("stdin-data");
     std::cin.clear();
     {
-        ScopedFdRedirect redirect(STDIN_FILENO, pipe_fds[0]);
-        ::close(pipe_fds[0]);
+        ScopedStreamRedirect redirect(std::cin, stream.rdbuf());
         const prebyte::InputBuffer buffer = reader.read(std::nullopt);
         REQUIRE_EQ(buffer.view(), std::string_view("stdin-data"));
     }
     std::cin.clear();
 }
 
+#ifdef __linux__
 TEST_CASE(OutputWriter_writes_stdout_when_no_path_is_given) {
     int pipe_fds[2] = {-1, -1};
     REQUIRE(::pipe(pipe_fds) == 0);
@@ -154,6 +167,19 @@ TEST_CASE(OutputWriter_writes_stdout_when_no_path_is_given) {
     const std::string output = read_all_fd(pipe_fds[0]);
     ::close(pipe_fds[0]);
     REQUIRE_EQ(output, std::string("stdout-data"));
+}
+#else
+TEST_CASE(OutputWriter_writes_stdout_when_no_path_is_given) {
+    prebyte::OutputWriter writer;
+    std::ostringstream stream;
+
+    {
+        ScopedStreamRedirect redirect(std::cout, stream.rdbuf());
+        writer.write("stdout-data", std::nullopt);
+        std::cout.flush();
+    }
+
+    REQUIRE_EQ(stream.str(), std::string("stdout-data"));
 }
 #endif
 

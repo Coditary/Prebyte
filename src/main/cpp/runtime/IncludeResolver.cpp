@@ -22,10 +22,23 @@ const std::filesystem::path& current_working_directory() {
 }
 
 std::filesystem::path shared_include_root() {
-    if (const char* home = std::getenv("HOME")) {
+#if defined(_WIN32)
+    if (const char* local_app_data = std::getenv("LOCALAPPDATA"); local_app_data != nullptr && *local_app_data != '\0') {
+        return std::filesystem::path(local_app_data) / "Prebyte" / "share";
+    }
+    if (const char* app_data = std::getenv("APPDATA"); app_data != nullptr && *app_data != '\0') {
+        return std::filesystem::path(app_data) / "Prebyte" / "share";
+    }
+    if (const char* profile = std::getenv("USERPROFILE"); profile != nullptr && *profile != '\0') {
+        return std::filesystem::path(profile) / "AppData" / "Local" / "Prebyte" / "share";
+    }
+    return std::filesystem::path("Prebyte") / "share";
+#else
+    if (const char* home = std::getenv("HOME"); home != nullptr && *home != '\0') {
         return std::filesystem::path(home) / ".local/share/prebyte";
     }
     return ".local/share/prebyte";
+#endif
 }
 
 std::filesystem::path canonical_path(const std::filesystem::path& path) {
@@ -39,13 +52,6 @@ std::filesystem::path canonical_path(const std::filesystem::path& path) {
         return path.lexically_normal();
     }
     return (current_working_directory() / path).lexically_normal();
-
-    std::error_code error;
-    const std::filesystem::path canonical = std::filesystem::weakly_canonical(path, error);
-    if (!error) {
-        return canonical;
-    }
-    return std::filesystem::absolute(path, error);
 }
 
 Diagnostic make_include_error(const std::string& message, const std::filesystem::path& path,
@@ -63,7 +69,8 @@ Diagnostic make_include_error(const std::string& message, const std::filesystem:
 }
 
 bool is_explicit_relative(const std::string& include_path) {
-    return include_path.starts_with("./") || include_path.starts_with("../");
+    return include_path.starts_with("./") || include_path.starts_with("../")
+        || include_path.starts_with(".\\") || include_path.starts_with("..\\");
 }
 
 bool path_exists(const std::filesystem::path& path) {
@@ -119,10 +126,8 @@ bool try_file_variant(const std::filesystem::path& physical_path, const std::fil
     return true;
 }
 
-bool try_logical_target(const std::filesystem::path& root, const std::string& include_path,
-                        const EffectiveSettings& settings,
-                        RenderSession& session, ResolvedInclude& resolved) {
-    const std::filesystem::path logical = root / include_path;
+bool try_target_path(const std::filesystem::path& logical, const EffectiveSettings& settings,
+                     RenderSession& session, ResolvedInclude& resolved) {
     const std::filesystem::path pbc = logical.string() + ".pbc";
     if (try_file_variant(pbc, logical, ResolvedIncludeKind::Compiled, settings, session, resolved)) {
         return true;
@@ -153,15 +158,16 @@ bool try_logical_target(const std::filesystem::path& root, const std::string& in
     return false;
 }
 
+bool try_logical_target(const std::filesystem::path& root, const std::string& include_path,
+                        const EffectiveSettings& settings,
+                        RenderSession& session, ResolvedInclude& resolved) {
+    return try_target_path(root / include_path, settings, session, resolved);
+}
+
 std::vector<std::filesystem::path> include_roots(const std::string& include_path,
                                                  const std::filesystem::path& current_file,
                                                  const EffectiveSettings& settings) {
     std::vector<std::filesystem::path> roots;
-    if (std::filesystem::path(include_path).is_absolute()) {
-        roots.push_back("/");
-        return roots;
-    }
-
     if (is_explicit_relative(include_path)) {
         if (!current_file.empty()) {
             roots.push_back(current_file.parent_path());
@@ -216,7 +222,7 @@ ResolvedInclude IncludeResolver::load(const std::string& include_path, const std
     }
 
     if (std::filesystem::path(include_path).is_absolute()) {
-        if (try_logical_target("/", include_path.substr(1), settings, session, resolved)) {
+        if (try_target_path(std::filesystem::path(include_path).lexically_normal(), settings, session, resolved)) {
             std::lock_guard lock(cache_mutex_);
             cache_[cache_key] = CacheEntry{resolved.path, resolved.logical_path, resolved.kind, resolved.compiled_program,
                                            std::chrono::steady_clock::now() + FileMetadataCache::ttl()};

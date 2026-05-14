@@ -19,6 +19,25 @@ Diagnostic make_runtime_error(const std::string& message, const SourceSpan& span
     return diagnostic;
 }
 
+std::string normalize_env_name(std::string_view name) {
+#ifdef _WIN32
+    return text::to_lower(std::string(name));
+#else
+    return std::string(name);
+#endif
+}
+
+bool is_forbidden_env_access(std::string_view name, const EffectiveSettings& settings) {
+#ifdef _WIN32
+    const std::string normalized = normalize_env_name(name);
+    return std::any_of(settings.forbidden_env_vars.begin(), settings.forbidden_env_vars.end(), [&](const std::string& forbidden_name) {
+        return normalize_env_name(forbidden_name) == normalized;
+    });
+#else
+    return settings.forbidden_env_vars.contains(std::string(name));
+#endif
+}
+
 std::optional<std::size_t> parse_index_value(const Value& index) {
     const std::string text = index.to_string();
     if (text.empty() || !std::all_of(text.begin(), text.end(), [](unsigned char ch) { return std::isdigit(ch) != 0; })) {
@@ -201,7 +220,7 @@ std::optional<Value> ValueResolver::lookup_direct_identifier(std::string_view na
     }
 
     if (settings.allow_env) {
-        if (settings.forbidden_env_vars.contains(std::string(name))) {
+        if (is_forbidden_env_access(name, settings)) {
             throw DiagnosticError(make_runtime_error("Access to forbidden environment variable: " + std::string(name), span));
         }
         if (const char* env = std::getenv(std::string(name).c_str())) {

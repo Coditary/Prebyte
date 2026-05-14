@@ -88,6 +88,16 @@ std::string format_delta(long long current, std::optional<long long> baseline, b
     return stream.str();
 }
 
+std::tm local_time_for(std::time_t value) {
+    std::tm local_time{};
+#ifdef _WIN32
+    localtime_s(&local_time, &value);
+#else
+    localtime_r(&value, &local_time);
+#endif
+    return local_time;
+}
+
 BenchmarkRow run_case(const std::string& name, const std::string& input_path, const std::vector<std::string>& define_args) {
     prebyte::Command command;
     command.mode = prebyte::CommandMode::Render;
@@ -114,7 +124,7 @@ int main() {
 
     const auto now = std::chrono::system_clock::now();
     const std::time_t now_time = std::chrono::system_clock::to_time_t(now);
-    const std::tm local_time = *std::localtime(&now_time);
+    const std::tm local_time = local_time_for(now_time);
     const std::vector<BenchmarkRow> rows = {
         run_case("simple-variable", "tests/fixtures/render_simple/input.txt", {"name=Ada"}),
         run_case("if-include", "tests/fixtures/render_include_if/input.txt", {"name=Ada", "enabled=true"}),

@@ -44,6 +44,30 @@ std::filesystem::path test_temp_root(const std::string& name) {
     return root;
 }
 
+const char* shared_root_environment_name() {
+#ifdef _WIN32
+    return "LOCALAPPDATA";
+#else
+    return "HOME";
+#endif
+}
+
+std::filesystem::path shared_root_environment_value(const std::filesystem::path& root) {
+#ifdef _WIN32
+    return root / "AppData" / "Local";
+#else
+    return root;
+#endif
+}
+
+std::filesystem::path default_shared_root_for_test(const std::filesystem::path& root) {
+#ifdef _WIN32
+    return shared_root_environment_value(root) / "Prebyte" / "share";
+#else
+    return root / ".local" / "share" / "prebyte";
+#endif
+}
+
 }
 
 TEST_CASE(AppRunner_render_simple_fixture) {
@@ -541,8 +565,8 @@ TEST_CASE(AppRunner_list_rules_shows_new_rule_values) {
 }
 
 TEST_CASE(AppRunner_forbidden_env_vars_override_allow_env) {
-    ::setenv("PREBYTE_APP_ALLOWED_ENV", "Ada", 1);
-    ::setenv("PREBYTE_APP_BLOCKED_ENV", "Secret", 1);
+    prebyte::test::ScopedEnvironmentVariable allowed_env("PREBYTE_APP_ALLOWED_ENV", "Ada");
+    prebyte::test::ScopedEnvironmentVariable blocked_env("PREBYTE_APP_BLOCKED_ENV", "Secret");
 
     prebyte::Command allowed;
     allowed.mode = prebyte::CommandMode::Render;
@@ -623,7 +647,7 @@ TEST_CASE(AppRunner_file_rule_override_applies_new_rules_to_included_file) {
 
 TEST_CASE(AppRunner_file_rule_override_applies_forbidden_env_vars_to_included_file) {
     const std::filesystem::path root = test_temp_root("file-rule-forbidden-env");
-    ::setenv("PREBYTE_FILE_RULE_BLOCKED", "secret", 1);
+    prebyte::test::ScopedEnvironmentVariable blocked_env("PREBYTE_FILE_RULE_BLOCKED", "secret");
     write_file(root / "partial.pbt", "{{ PREBYTE_FILE_RULE_BLOCKED }}");
     write_file(root / "main.pbt", "{{ include \"./partial\" }}");
     write_file(root / "settings.json", std::string("{\n")
@@ -841,6 +865,7 @@ TEST_CASE(AppRunner_render_top_level_pbc_file_with_named_structured_imports) {
     REQUIRE_EQ(output, std::string("Ada Grace"));
 }
 
+#ifndef _WIN32
 TEST_CASE(AppRunner_render_source_file_from_adjacent_pbc_without_reading_source) {
     const std::filesystem::path root = test_temp_root("top-level-adjacent-pbc");
     const std::filesystem::path source_path = root / "sample.txt";
@@ -947,12 +972,13 @@ TEST_CASE(AppRunner_reuse_in_memory_compiled_template_when_pbc_write_fails) {
                                  permissions_error);
     REQUIRE(!permissions_error);
 }
+#endif
 
 TEST_CASE(AppRunner_include_uses_default_shared_root) {
     const std::filesystem::path root = test_temp_root("default-shared-root");
-    const std::filesystem::path shared = root / ".local/share/prebyte/java/index.pbt";
+    const std::filesystem::path shared = default_shared_root_for_test(root) / "java" / "index.pbt";
     write_file(shared, "Shared OK");
-    setenv("HOME", root.c_str(), 1);
+    prebyte::test::ScopedEnvironmentVariable shared_root_env(shared_root_environment_name(), shared_root_environment_value(root).string());
 
     prebyte::Command command;
     command.mode = prebyte::CommandMode::Render;

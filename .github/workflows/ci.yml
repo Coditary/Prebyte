@@ -1,0 +1,333 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            runner: ubuntu-24.04
+            platform: linux
+            arch: x86_64
+            vcpkg_triplet: x64-linux
+            python_cmd: python3
+            binary_path: build/prebyte
+          - name: linux-aarch64
+            runner: ubuntu-24.04-arm
+            platform: linux
+            arch: aarch64
+            vcpkg_triplet: arm64-linux
+            python_cmd: python3
+            binary_path: build/prebyte
+          - name: macos-x86_64
+            runner: macos-15-intel
+            platform: macos
+            arch: x86_64
+            vcpkg_triplet: x64-osx
+            python_cmd: python3
+            binary_path: build/prebyte
+          - name: macos-aarch64
+            runner: macos-15
+            platform: macos
+            arch: aarch64
+            vcpkg_triplet: arm64-osx
+            python_cmd: python3
+            binary_path: build/prebyte
+          - name: windows-x86_64
+            runner: windows-2025
+            platform: windows
+            arch: x86_64
+            vcpkg_triplet: x64-windows-static
+            python_cmd: python
+            binary_path: build/Release/prebyte.exe
+            cmake_arch: x64
+          - name: windows-aarch64
+            runner: windows-11-arm
+            platform: windows
+            arch: aarch64
+            vcpkg_triplet: arm64-windows-static
+            python_cmd: python
+            binary_path: build/Release/prebyte.exe
+            cmake_arch: ARM64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build pkg-config
+
+      - name: Install macOS prerequisites
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install ninja
+
+      - name: Bootstrap vcpkg (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          VCPKG_ROOT="$RUNNER_TEMP/vcpkg"
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
+          "$VCPKG_ROOT/vcpkg" install "lua:${{ matrix.vcpkg_triplet }}"
+
+      - name: Bootstrap vcpkg (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $VcpkgRoot = Join-Path $env:RUNNER_TEMP 'vcpkg'
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git $VcpkgRoot
+          & "$VcpkgRoot\bootstrap-vcpkg.bat" -disableMetrics
+          "VCPKG_ROOT=$VcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          & "$VcpkgRoot\vcpkg.exe" install "lua:${{ matrix.vcpkg_triplet }}"
+
+      - name: Configure (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET="${{ matrix.vcpkg_triplet }}" \
+            -DPREBYTE_BUILD_TESTS=ON \
+            -DPREBYTE_BUILD_BENCHMARKS=OFF
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A "${{ matrix.cmake_arch }}" `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET="${{ matrix.vcpkg_triplet }}" `
+            -DPREBYTE_BUILD_TESTS=ON `
+            -DPREBYTE_BUILD_BENCHMARKS=OFF
+
+      - name: Build (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake --build build --parallel
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmake --build build --config Release --parallel
+
+      - name: Test (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ctest --test-dir build --output-on-failure
+
+      - name: Test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ctest --test-dir build -C Release --output-on-failure
+
+      - name: Package release artifact (Unix)
+        if: startsWith(github.ref, 'refs/tags/v') && runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ${{ matrix.python_cmd }} scripts/ci/package_binary.py \
+            --version "$GITHUB_REF_NAME" \
+            --platform "${{ matrix.platform }}" \
+            --arch "${{ matrix.arch }}" \
+            --binary "${{ matrix.binary_path }}" \
+            --output-dir dist
+
+      - name: Package release artifact (Windows)
+        if: startsWith(github.ref, 'refs/tags/v') && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & ${{ matrix.python_cmd }} scripts/ci/package_binary.py `
+            --version $env:GITHUB_REF_NAME `
+            --platform '${{ matrix.platform }}' `
+            --arch '${{ matrix.arch }}' `
+            --binary '${{ matrix.binary_path }}' `
+            --output-dir dist
+
+      - name: Upload release artifact
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.platform }}-${{ matrix.arch }}
+          path: dist/*
+          if-no-files-found: error
+
+  coverage:
+    name: coverage-linux-x86_64
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install coverage prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcovr ninja-build pkg-config
+
+      - name: Bootstrap vcpkg
+        shell: bash
+        run: |
+          set -euo pipefail
+          VCPKG_ROOT="$RUNNER_TEMP/vcpkg"
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
+          "$VCPKG_ROOT/vcpkg" install "lua:x64-linux"
+
+      - name: Configure coverage build
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake --preset coverage \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux
+
+      - name: Build coverage tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake --build --preset coverage-tests --parallel
+
+      - name: Run coverage tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          ctest --preset coverage
+
+      - name: Generate coverage report
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcovr \
+            --root "$GITHUB_WORKSPACE" \
+            --filter "$GITHUB_WORKSPACE/src/main/cpp" \
+            --exclude-directories "$GITHUB_WORKSPACE/build-cmake" \
+            --xml-pretty \
+            --output build-cmake/coverage/coverage.xml
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: build-cmake/coverage/coverage.xml
+          if-no-files-found: error
+
+      - name: Upload coverage to Codecov
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
+        uses: codecov/codecov-action@v5
+        with:
+          files: build-cmake/coverage/coverage.xml
+          use_oidc: true
+          fail_ci_if_error: true
+          verbose: true
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-test
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download packaged artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --title "Prebyte $VERSION" --notes "Automated release for Prebyte $VERSION."
+          gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+
+  docker:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-test
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compute image metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE_NAME=$(printf '%s' "ghcr.io/${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')
+          VERSION="${GITHUB_REF_NAME#v}"
+          CREATED=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          echo "image_name=$IMAGE_NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "created=$CREATED" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+
+      - name: Enable QEMU
+        run: |
+          set -euo pipefail
+          docker run --privileged --rm tonistiigi/binfmt --install amd64,arm64
+
+      - name: Create buildx builder
+        run: |
+          set -euo pipefail
+          docker buildx create --name prebyte-builder --use
+          docker buildx inspect --bootstrap
+
+      - name: Build and push Docker image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --build-arg PREBYTE_VERSION="${{ steps.meta.outputs.version }}" \
+            --build-arg BUILD_DATE="${{ steps.meta.outputs.created }}" \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            -t "${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.version }}" \
+            -t "${{ steps.meta.outputs.image_name }}:${GITHUB_REF_NAME}" \
+            -t "${{ steps.meta.outputs.image_name }}:latest" \
+            --push .

@@ -1,6 +1,13 @@
 # Prebyte
 
+[![Tests](https://github.com/Coditary/Prebyte/actions/workflows/ci.yml/badge.svg)](https://github.com/Coditary/Prebyte/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Coditary/Prebyte?display_name=tag)](https://github.com/Coditary/Prebyte/releases)
+[![Coverage](https://codecov.io/gh/Coditary/Prebyte/branch/main/graph/badge.svg)](https://codecov.io/gh/Coditary/Prebyte)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Prebyte is text templating CLI and C++ library with recursive-descent parser, typed AST, compiled template cache, file-aware include resolution, and `{{ ... }}` syntax.
+
+Contribution guide: see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Status
 
@@ -35,6 +42,8 @@ Not implemented yet:
 
 ## Build
 
+`make` is convenience wrapper for Unix-like shells. Cross-platform path is CMake presets.
+
 ```bash
 make
 ```
@@ -44,6 +53,20 @@ Or with CMake + Ninja:
 ```bash
 cmake --preset dev
 cmake --build --preset dev
+```
+
+On Windows, use CMake preset commands above from Developer PowerShell or terminal with CMake, Ninja, compiler, and Lua installed.
+
+## Releases
+
+Tagged releases publish versioned binaries to [GitHub Releases](https://github.com/Coditary/Prebyte/releases).
+
+Container images are published to GHCR for Linux `x86_64` and `aarch64`:
+
+```bash
+docker pull ghcr.io/coditary/prebyte:latest
+docker run --rm ghcr.io/coditary/prebyte:latest -h
+cat input.txt | docker run --rm -i ghcr.io/coditary/prebyte:latest
 ```
 
 ## Test
@@ -57,6 +80,8 @@ Or with CMake:
 ```bash
 ctest --preset dev
 ```
+
+On Windows, prefer `cmake --build --preset dev --target prebyte_tests` then `ctest --preset dev`.
 
 ## Benchmark
 
@@ -154,7 +179,7 @@ Include roots are checked in this order:
 2. each CLI `-I/--include-path` in order
 3. settings `include_paths` in order
 4. legacy `include_path`
-5. `~/.local/share/prebyte`
+5. `~/.local/share/prebyte` on Unix-like systems or `%LOCALAPPDATA%\Prebyte\share` on Windows
 
 First matching root wins.
 
