@@ -270,12 +270,13 @@ jobs:
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
-            gh release create "$GITHUB_REF_NAME" --title "Prebyte $VERSION" --notes "Automated release for Prebyte $VERSION."
-          gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          gh release view "$GITHUB_REF_NAME" --repo "$GH_REPO" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --repo "$GH_REPO" --title "Prebyte $VERSION" --notes "Automated release for Prebyte $VERSION."
+          gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GH_REPO" --clobber
 
   docker:
     if: startsWith(github.ref, 'refs/tags/v')
