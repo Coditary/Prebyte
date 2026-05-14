@@ -23,7 +23,12 @@ namespace prebyte {
 
 struct RenderSession {
     static constexpr std::size_t kLinearIncludeDepth = 4;
+#if defined(_WIN32)
+    // Hosted MSVC runners overflow stack before 64 nested template calls.
+    static constexpr std::size_t kMaxFunctionCallDepth = 32;
+#else
     static constexpr std::size_t kMaxFunctionCallDepth = 64;
+#endif
 
     struct LoopFrame {
         std::string binding_name_0;
