@@ -1,0 +1,28 @@
+{
+  "formatVersion": 1,
+  "name": "prebyte",
+  "version": @VERSION@,
+  "release": 1,
+  "revision": 0,
+  "summary": "Prebyte templating CLI",
+  "description": "Recursive-descent text templating CLI for Prebyte templates.",
+  "license": "MIT",
+  "architecture": @ARCHITECTURE@,
+  "system": [@SYSTEM@],
+  "vendor": "Coditary",
+  "maintainerEmail": "Matographo@gmail.com",
+  "url": @URL@,
+  "homepage": "https://github.com/Coditary/Prebyte",
+  "sourceUrl": "https://github.com/Coditary/Prebyte",
+  "buildDate": @BUILD_DATE@,
+  "tags": ["cli", "templating", "prebyte"],
+  "payload": {
+    "path": "payload/payload.tar.zst",
+    "archive": "tar",
+    "compression": "zstd",
+    "hashAlgorithm": "sha256",
+    "hashFile": "hashes/payload.sha256",
+    "sizeCompressed": @SIZE_COMPRESSED@,
+    "sizeInstalledExpected": @SIZE_INSTALLED_EXPECTED@
+  }
+}

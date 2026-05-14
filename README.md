@@ -57,6 +57,14 @@ cmake --build --preset dev
 
 On Windows, use CMake preset commands above from Developer PowerShell or terminal with CMake, Ninja, compiler, and Lua installed.
 
+Build current-host ReqPack package on Linux or macOS:
+
+```bash
+make reqpack
+```
+
+Output is written to `dist/`.
+
 ## Releases
 
 Tagged releases publish versioned binaries to [GitHub Releases](https://github.com/Coditary/Prebyte/releases).

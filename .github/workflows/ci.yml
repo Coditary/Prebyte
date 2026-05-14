@@ -73,13 +73,13 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ninja-build pkg-config
+          sudo apt-get install -y --no-install-recommends ninja-build pkg-config zstd
 
       - name: Install macOS prerequisites
         if: runner.os == 'macOS'
         run: |
           brew update
-          brew install ninja
+          brew install ninja zstd
 
       - name: Bootstrap vcpkg (Unix)
         if: runner.os != 'Windows'
@@ -162,6 +162,18 @@ jobs:
             --binary "${{ matrix.binary_path }}" \
             --output-dir dist
 
+      - name: Package ReqPack artifact (Unix)
+        if: startsWith(github.ref, 'refs/tags/v') && runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ${{ matrix.python_cmd }} scripts/ci/package_reqpack.py \
+            --version "$GITHUB_REF_NAME" \
+            --platform "${{ matrix.platform }}" \
+            --arch "${{ matrix.arch }}" \
+            --binary "${{ matrix.binary_path }}" \
+            --output-dir dist
+
       - name: Package release artifact (Windows)
         if: startsWith(github.ref, 'refs/tags/v') && runner.os == 'Windows'
         shell: pwsh
@@ -181,6 +193,7 @@ jobs:
           path: |
             dist/*.tar.gz
             dist/*.zip
+            dist/*.rqp
           if-no-files-found: error
 
   coverage:
@@ -279,7 +292,7 @@ jobs:
             gh release create "$GITHUB_REF_NAME" --repo "$GH_REPO" --title "Prebyte $VERSION" --notes "Automated release for Prebyte $VERSION."
           fi
           gh release edit "$GITHUB_REF_NAME" --repo "$GH_REPO" --draft=false --latest --title "Prebyte $VERSION" --notes "Automated release for Prebyte $VERSION."
-          gh release upload "$GITHUB_REF_NAME" dist/*.tar.gz dist/*.zip --repo "$GH_REPO" --clobber
+          gh release upload "$GITHUB_REF_NAME" dist/*.tar.gz dist/*.zip dist/*.rqp --repo "$GH_REPO" --clobber
 
   docker:
     if: startsWith(github.ref, 'refs/tags/v')
