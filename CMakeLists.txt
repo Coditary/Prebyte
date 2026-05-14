@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.31)
 project(Prebyte VERSION 1.0.0 LANGUAGES CXX)
 
 include(CTest)
-include(CheckCXXSourceCompiles)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -16,25 +15,6 @@ option(PREBYTE_BUILD_BENCHMARKS "Build benchmark binary" ON)
 option(PREBYTE_ENABLE_COVERAGE "Enable GCC/GCov coverage instrumentation" OFF)
 
 find_package(Lua REQUIRED)
-
-set(CMAKE_REQUIRED_INCLUDES ${LUA_INCLUDE_DIR})
-check_cxx_source_compiles(
-    "
-    extern \"C\" {
-    #include <stddef.h>
-    #include <lua.h>
-    }
-
-    static void* alloc(void*, void*, size_t, size_t) { return nullptr; }
-
-    int main() {
-        (void)lua_newstate(&alloc, nullptr, 0U);
-        return 0;
-    }
-    "
-    PREBYTE_LUA_NEWSTATE_HAS_SEED
-)
-unset(CMAKE_REQUIRED_INCLUDES)
 
 if(TARGET Lua::Lua)
     set(PREBYTE_LUA_TARGET Lua::Lua)
@@ -91,9 +71,6 @@ target_link_libraries(prebyte_core
         ${PREBYTE_LUA_TARGET}
         ${PREBYTE_PLATFORM_LIBS}
 )
-if(PREBYTE_LUA_NEWSTATE_HAS_SEED)
-    target_compile_definitions(prebyte_core PRIVATE PREBYTE_LUA_NEWSTATE_HAS_SEED=1)
-endif()
 
 if(PREBYTE_ENABLE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")

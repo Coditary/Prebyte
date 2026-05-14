@@ -2,7 +2,7 @@
 
 #include <limits>
 
-#if defined(__unix__) || defined(__APPLE__)
+#ifndef _WIN32
 #include <cerrno>
 #include <sys/stat.h>
 #endif
@@ -13,6 +13,7 @@ namespace {
 
 constexpr auto kMetadataCacheTtl = std::chrono::milliseconds(250);
 
+#ifndef _WIN32
 std::int64_t stat_mtime_ticks(const struct stat& info) {
 #if defined(__APPLE__)
     return static_cast<std::int64_t>(info.st_mtimespec.tv_sec) * 1000000000LL
@@ -22,6 +23,7 @@ std::int64_t stat_mtime_ticks(const struct stat& info) {
         + static_cast<std::int64_t>(info.st_mtim.tv_nsec);
 #endif
 }
+#endif
 
 const std::filesystem::path& current_working_directory() {
     static const std::filesystem::path cwd = []() {
@@ -95,7 +97,7 @@ std::filesystem::path FileMetadataCache::normalize_path(const std::filesystem::p
 }
 
 FileMetadata FileMetadataCache::stat_path(const std::filesystem::path& path) const {
-#if defined(__unix__) || defined(__APPLE__)
+#ifndef _WIN32
     struct stat info {};
     if (::stat(path.c_str(), &info) == 0) {
         return FileMetadata{

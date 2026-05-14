@@ -19,19 +19,19 @@ Diagnostic make_lua_error(const std::string& message, const SourceSpan& span) {
     return diagnostic;
 }
 
-lua_State* create_lua_state(lua_Alloc allocator, void* user_data) {
-#ifdef PREBYTE_LUA_NEWSTATE_HAS_SEED
-    return lua_newstate(allocator, user_data, 0U);
-#else
-    return lua_newstate(allocator, user_data);
-#endif
+lua_State* create_lua_state(lua_Alloc allocator, void* user_data, lua_State* (*factory)(lua_Alloc, void*)) {
+    return factory(allocator, user_data);
+}
+
+lua_State* create_lua_state(lua_Alloc allocator, void* user_data, lua_State* (*factory)(lua_Alloc, void*, unsigned)) {
+    return factory(allocator, user_data, 0U);
 }
 
 }
 
 LuaRuntime::LuaRuntime() {
     sandbox_ = LuaSandbox(helper_registry_);
-    state_ = create_lua_state(&LuaRuntime::lua_allocator, this);
+    state_ = create_lua_state(&LuaRuntime::lua_allocator, this, &lua_newstate);
     if (state_ == nullptr) {
         throw std::runtime_error("Failed to initialize Lua state");
     }
