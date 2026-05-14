@@ -17,6 +17,10 @@ void write_engine_api_file(const std::filesystem::path& path, const std::string&
     file << content;
 }
 
+std::string json_path_string(const std::filesystem::path& path) {
+    return path.generic_string();
+}
+
 std::filesystem::path prebyte_engine_test_root(const std::string& name) {
     const std::filesystem::path root = std::filesystem::temp_directory_path() / "prebyte-engine-api-tests" / name;
     std::filesystem::remove_all(root);
@@ -46,7 +50,7 @@ TEST_CASE(PrebyteEngine_applies_settings_profiles_rules_ignore_and_include_paths
                               + "  \"profiles\": {\n"
                               + "    \"dev\": {\n"
                               + "      \"variables\": {\"fromProfile\": \"Profile\"},\n"
-                              + "      \"include_paths\": [\"" + (root / "profile-includes").string() + "\"]\n"
+                              + "      \"include_paths\": [\"" + json_path_string(root / "profile-includes") + "\"]\n"
                               + "    }\n"
                               + "  }\n"
                               + "}\n");

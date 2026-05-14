@@ -119,7 +119,7 @@ struct RenderSession {
     std::vector<LocalScopeFrame> local_scopes;
     std::vector<FunctionScopeFrame> function_scopes;
     std::vector<LoopFrame> loop_frames;
-    std::vector<const std::filesystem::path*> include_stack;
+    std::vector<std::filesystem::path> include_stack;
     std::unordered_set<std::filesystem::path> include_stack_set;
     std::chrono::steady_clock::time_point start_time;
     mutable std::optional<BuiltinSnapshot> builtin_snapshot;
@@ -366,22 +366,20 @@ struct RenderSession {
 
     bool contains_include(const std::filesystem::path& path) const {
         if (include_stack.size() < kLinearIncludeDepth) {
-            return std::any_of(include_stack.begin(), include_stack.end(), [&](const std::filesystem::path* current) {
-                return current != nullptr && *current == path;
+            return std::any_of(include_stack.begin(), include_stack.end(), [&](const std::filesystem::path& current) {
+                return current == path;
             });
         }
         return include_stack_set.contains(path);
     }
 
     void push_include(const std::filesystem::path& path) {
-        include_stack.push_back(&path);
+        include_stack.push_back(path);
         if (include_stack.size() == kLinearIncludeDepth) {
             include_stack_set.clear();
             include_stack_set.reserve(kLinearIncludeDepth * 2);
-            for (const std::filesystem::path* current : include_stack) {
-                if (current != nullptr) {
-                    include_stack_set.insert(*current);
-                }
+            for (const std::filesystem::path& current : include_stack) {
+                include_stack_set.insert(current);
             }
             return;
         }
@@ -397,10 +395,7 @@ struct RenderSession {
         if (include_stack.size() == kLinearIncludeDepth) {
             include_stack_set.clear();
         } else if (include_stack.size() > kLinearIncludeDepth) {
-            const std::filesystem::path* current = include_stack.back();
-            if (current != nullptr) {
-                include_stack_set.erase(*current);
-            }
+            include_stack_set.erase(include_stack.back());
         }
         include_stack.pop_back();
     }

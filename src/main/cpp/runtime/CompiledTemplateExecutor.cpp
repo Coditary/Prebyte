@@ -198,9 +198,7 @@ Diagnostic make_include_cycle_error(const std::filesystem::path& path, const Ren
     diagnostic.message = "Include cycle detected";
     diagnostic.span.file_path = path.string();
     for (const auto& include : session.include_stack) {
-        if (include != nullptr) {
-            diagnostic.include_chain.push_back(include->string());
-        }
+        diagnostic.include_chain.push_back(include.string());
     }
     return diagnostic;
 }
@@ -908,56 +906,57 @@ Value CompiledTemplateExecutor::evaluate_expression(const CompiledProgram& progr
 }
 
 Value CompiledTemplateExecutor::call_function(const RenderSession::FunctionDefinition& function,
-                                             std::vector<Value> arguments,
-                                             const EffectiveSettings& settings,
-                                             const std::filesystem::path& current_file,
-                                             RenderSession& session) const {
-    const std::filesystem::path& function_file = function_file_for(function, current_file);
+                                              std::vector<Value> arguments,
+                                              const EffectiveSettings& settings,
+                                              const std::filesystem::path& current_file,
+                                              RenderSession& session) const {
+    const RenderSession::FunctionDefinition active_function = function;
+    const std::filesystem::path& function_file = function_file_for(active_function, current_file);
     ensure_render_time_budget(settings, function_file, session);
-    if (function.parameters.size() != arguments.size()) {
+    if (active_function.parameters.size() != arguments.size()) {
         throw DiagnosticError(make_runtime_error(
-            "Wrong function arity: expected " + std::to_string(function.parameters.size())
+            "Wrong function arity: expected " + std::to_string(active_function.parameters.size())
                 + ", got " + std::to_string(arguments.size()),
             function_file,
-            static_cast<std::uint32_t>(function.definition_span.start.line),
-            static_cast<std::uint32_t>(function.definition_span.start.column)));
+            static_cast<std::uint32_t>(active_function.definition_span.start.line),
+            static_cast<std::uint32_t>(active_function.definition_span.start.column)));
     }
     if (session.function_call_depth >= RenderSession::kMaxFunctionCallDepth) {
         throw DiagnosticError(make_runtime_error("Function recursion limit exceeded",
                                                  function_file,
-                                                 static_cast<std::uint32_t>(function.definition_span.start.line),
-                                                 static_cast<std::uint32_t>(function.definition_span.start.column)));
+                                                 static_cast<std::uint32_t>(active_function.definition_span.start.line),
+                                                 static_cast<std::uint32_t>(active_function.definition_span.start.column)));
     }
 
     ++session.function_call_depth;
     session.push_local_scope();
-    for (std::size_t index = 0; index < function.parameters.size(); ++index) {
-        session.set_local_value(function.parameters[index], std::move(arguments[index]));
+    for (std::size_t index = 0; index < active_function.parameters.size(); ++index) {
+        session.set_local_value(active_function.parameters[index], std::move(arguments[index]));
     }
 
     try {
-        if (function.kind == RenderSession::FunctionDefinition::Kind::Lua) {
+        if (active_function.kind == RenderSession::FunctionDefinition::Kind::Lua) {
             if (!session.lua_runtime) {
                 session.lua_runtime = std::make_shared<LuaRuntime>();
             }
-            const Value value = session.lua_runtime->execute(std::string(function.lua_source),
+            const Value value = session.lua_runtime->execute(std::string(active_function.lua_source),
                                                              LuaChunkMode::BlockValue,
                                                              settings,
                                                              session,
                                                              function_file,
-                                                             function.definition_span);
+                                                             active_function.definition_span);
             session.pop_local_scope();
             --session.function_call_depth;
             return value;
         }
 
-        if (function.program == nullptr) {
+        if (active_function.program == nullptr) {
             throw DiagnosticError(make_exec_error("Compiled function body missing", function_file));
         }
         std::string output;
-        execute_range(*function.program,
-                      function.body_range.offset,
-                      function.body_range.offset + function.body_range.length,
+        execute_range(*active_function.program,
+                      active_function.body_range.offset,
+                      active_function.body_range.offset + active_function.body_range.length,
                       settings,
                       function_file,
                       session,

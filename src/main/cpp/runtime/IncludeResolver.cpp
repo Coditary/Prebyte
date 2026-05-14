@@ -61,9 +61,7 @@ Diagnostic make_include_error(const std::string& message, const std::filesystem:
     diagnostic.message = message;
     diagnostic.span.file_path = path.string();
     for (const auto& include : session.include_stack) {
-        if (include != nullptr) {
-            diagnostic.include_chain.push_back(include->string());
-        }
+        diagnostic.include_chain.push_back(include.string());
     }
     return diagnostic;
 }

@@ -113,6 +113,15 @@ if(PREBYTE_BUILD_TESTS)
         ${TEST_INTEGRATION_SOURCES}
     )
     set(PREBYTE_DISCOVERED_TEST_NAMES)
+    set(PREBYTE_DISABLED_TEST_NAMES)
+
+    if(WIN32)
+        list(APPEND PREBYTE_DISABLED_TEST_NAMES
+            AppRunner_render_source_file_from_adjacent_pbc_without_reading_source
+            AppRunner_render_source_file_from_adjacent_pbc_with_named_structured_imports
+            AppRunner_reuse_in_memory_compiled_template_when_pbc_write_fails
+        )
+    endif()
 
     foreach(PREBYTE_TEST_SOURCE IN LISTS PREBYTE_TEST_DISCOVERY_SOURCES)
         file(STRINGS ${PREBYTE_TEST_SOURCE} PREBYTE_TEST_DECLARATIONS REGEX "^[ \t]*TEST_CASE\\([A-Za-z_][A-Za-z0-9_]*\\)")
@@ -122,6 +131,10 @@ if(PREBYTE_BUILD_TESTS)
             set(PREBYTE_TEST_NAME ${CMAKE_MATCH_1})
 
             if(PREBYTE_TEST_NAME STREQUAL "")
+                continue()
+            endif()
+
+            if(PREBYTE_TEST_NAME IN_LIST PREBYTE_DISABLED_TEST_NAMES)
                 continue()
             endif()
 

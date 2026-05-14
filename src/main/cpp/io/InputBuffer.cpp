@@ -44,6 +44,15 @@ std::string read_owned_fd(int fd, std::size_t size) {
 #endif
 
 std::string read_owned_file(const std::filesystem::path& path) {
+    std::error_code status_error;
+    const std::filesystem::file_status status = std::filesystem::status(path, status_error);
+    if (!status_error && std::filesystem::exists(status) && !std::filesystem::is_regular_file(status)) {
+        const std::error_code error = std::filesystem::is_directory(status)
+            ? std::make_error_code(std::errc::is_a_directory)
+            : std::make_error_code(std::errc::invalid_argument);
+        throw std::system_error(error, "open");
+    }
+
     std::ifstream stream(path, std::ios::binary);
     if (!stream) {
         throw std::system_error(errno, std::generic_category(), "open");
