@@ -2,3 +2,5 @@ build
 build-cmake
 Session.vim
 .cache
+*.pbc
+*.gcov.json.gz
