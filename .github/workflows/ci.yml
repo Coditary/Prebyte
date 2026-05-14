@@ -188,7 +188,6 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -234,8 +233,8 @@ jobs:
           set -euo pipefail
           gcovr \
             --root "$GITHUB_WORKSPACE" \
+            --object-directory "$GITHUB_WORKSPACE/build-cmake/coverage" \
             --filter "$GITHUB_WORKSPACE/src/main/cpp" \
-            --exclude-directories "$GITHUB_WORKSPACE/build-cmake" \
             --xml-pretty \
             --output build-cmake/coverage/coverage.xml
 
@@ -251,7 +250,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: build-cmake/coverage/coverage.xml
-          use_oidc: true
+          token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           verbose: true
 
@@ -276,8 +275,10 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
-          gh release view "$GITHUB_REF_NAME" --repo "$GH_REPO" >/dev/null 2>&1 || \
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
             gh release create "$GITHUB_REF_NAME" --repo "$GH_REPO" --title "Prebyte $VERSION" --notes "Automated release for Prebyte $VERSION."
+          fi
+          gh release edit "$GITHUB_REF_NAME" --repo "$GH_REPO" --draft=false --latest --title "Prebyte $VERSION" --notes "Automated release for Prebyte $VERSION."
           gh release upload "$GITHUB_REF_NAME" dist/*.tar.gz dist/*.zip --repo "$GH_REPO" --clobber
 
   docker:

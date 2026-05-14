@@ -33,7 +33,7 @@ Coverage locally:
 cmake --preset coverage
 cmake --build --preset coverage --target prebyte_tests
 ctest --preset coverage
-gcovr --root . --filter src/main/cpp --xml-pretty --output build-cmake/coverage/coverage.xml
+gcovr --root . --object-directory build-cmake/coverage --filter src/main/cpp --xml-pretty --output build-cmake/coverage/coverage.xml
 ```
 
 ## Change Expectations
@@ -71,4 +71,4 @@ Tagged releases use GitHub Actions.
 
 1. Never commit credentials, tokens, or private keys.
 2. Keep secrets in GitHub Actions secrets or trusted OIDC integrations.
-3. Coverage upload uses Codecov action; configure repository access in Codecov before expecting badge updates.
+3. Coverage upload uses Codecov action; activate repo in Codecov and set `CODECOV_TOKEN` in repository or organization Actions secrets before expecting badge updates.

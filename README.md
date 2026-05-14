@@ -1,8 +1,8 @@
 # Prebyte
 
-[![Tests](https://github.com/Coditary/Prebyte/actions/workflows/ci.yml/badge.svg)](https://github.com/Coditary/Prebyte/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/Coditary/Prebyte?display_name=tag)](https://github.com/Coditary/Prebyte/releases)
-[![Coverage](https://codecov.io/gh/Coditary/Prebyte/branch/main/graph/badge.svg)](https://codecov.io/gh/Coditary/Prebyte)
+[![Tests](https://img.shields.io/github/actions/workflow/status/Coditary/Prebyte/ci.yml?branch=main&event=push&label=Tests)](https://github.com/Coditary/Prebyte/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/tag/Coditary/Prebyte?label=Release)](https://github.com/Coditary/Prebyte/releases)
+[![Coverage](https://img.shields.io/codecov/c/github/Coditary/Prebyte?label=Coverage)](https://app.codecov.io/gh/Coditary/Prebyte)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Prebyte is text templating CLI and C++ library with recursive-descent parser, typed AST, compiled template cache, file-aware include resolution, and `{{ ... }}` syntax.
