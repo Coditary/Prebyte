@@ -1,30 +1,37 @@
 # Prebyte
 
-Prebyte is a text templating tool and C++ library with a recursive-descent parser, typed AST, file-aware rule resolution, and a `{{ ... }}` syntax.
+Prebyte is text templating CLI and C++ library with recursive-descent parser, typed AST, compiled template cache, file-aware include resolution, and `{{ ... }}` syntax.
 
-## Phase 1 Status
+## Status
 
 Implemented now:
 
 1. `{{ variable }}` interpolation
-2. `{{ include "file.txt" }}`
-3. `{{ if ... }} ... {{ elseif ... }} ... {{ else }} ... {{ endif }}`
-4. stdin or file input
-5. stdout or file output
-6. CLI variables via `-D`
-7. settings and profiles
-8. global and file-specific rules
-9. unit tests and integration tests
-10. benchmark runner with persisted history
-11. explicit Lua opt-in via `{{ lua ... }}`, `{{ lua:block }}`, `if lua(...)`, and `if lua:block`
+2. object member access like `{{ user.name }}`
+3. list index access like `{{ items[0] }}`
+4. `{{ include "file.txt" }}`
+5. `{{ if ... }} ... {{ elseif ... }} ... {{ else }} ... {{ endif }}`
+6. `{{ for item in items }} ... {{ else }} ... {{ endfor }}`
+7. `{{ for key, value in object }} ... {{ endfor }}`
+8. `{{ set name = expression }}`
+9. filters with pipes: `trim`, `upper`, `lower`, `default`, `replace`
+10. builtin variables like `__FILE__`, `__DATE__`, `__UUID__`, `__RANDOM__`
+11. explicit Lua via `{{ lua ... }}`, `{{ lua:block }}`, `if lua(...)`, and `if lua:block`
+12. user-defined functions via `{{ fn ... }} ... {{ endfn }}` and `{{ fn ... lua:block }} ... {{ endfn }}`
+13. stdin or file input
+14. stdout or file output
+15. CLI variables via `-D`
+16. structured variable imports from JSON, YAML, TOML, and `.env`
+17. settings and profiles
+18. global and file-specific rules
+19. unit tests and integration tests
+20. benchmark runner with persisted history
 
-Not implemented yet in Phase 1:
+Not implemented yet:
 
-1. `for` loops
-2. `while` loops
-3. macros
-4. user-defined functions
-5. advanced cache features
+1. `while` loops
+2. macros separate from functions
+3. advanced cache controls exposed to users
 
 ## Build
 
@@ -59,16 +66,14 @@ make benchmark
 
 `make benchmark` runs:
 
-1. internal Prebyte benchmark history update
-2. cross-engine comparison in `tools/benchmark_compare/`
+1. internal Prebyte benchmark history update in `tests/benchmarks/history.md`
+2. Prebyte vs Go comparison from `tools/benchmark_compare/`
 
-Or with CMake:
+Cross-engine comparison prints three modes:
 
-```bash
-cmake --build --preset dev-benchmarks
-./build-cmake/dev/prebyte_benchmarks
-cmake --build --preset dev-compare-benchmark
-```
+1. `cold`: fresh engine and parse path on each render
+2. `warm-execute`: parse and prepare once, then execute again without final output memoization
+3. `warm-memoized`: repeat same render after final output memoization is primed
 
 Benchmark history is stored in `tests/benchmarks/history.md`.
 
@@ -80,6 +85,8 @@ Basic usage:
 prebyte input.txt
 prebyte input.txt -o output.txt
 cat input.txt | prebyte
+prebyte template.txt arg0 arg1
+prebyte -- foo bar
 ```
 
 Commands:
@@ -97,16 +104,17 @@ Commands:
 Options:
 
 1. `-o, --output <file>` output file
-2. `-Dname=value` set variable
-3. `-Dname=@path/to/file` read file into variable
-4. `-Dname=@@literal` escape leading `@`
-5. `-Dpath/to/file.env` import variables from file
-6. `-r, --rule <rule>` set global or file-specific rule
-7. `-s, --settings <file>` load settings file
-8. `-i, --ignore <name>` ignore named variable during render
-9. `-p, --profile <name>` apply profile
-10. `--benchmark` append timing output
-11. `-X, --debug` enable debug flag in effective settings
+2. `-I, --include-path <dir>` add include root, first match wins
+3. `-Dname=value` set variable
+4. `-Dname=@path/to/file` read file into variable
+5. `-Dname=@@literal` escape leading `@`
+6. `-Dpath/to/file.env` import variables from file
+7. `-r, --rule <rule>` set global or file-specific rule
+8. `-s, --settings <file>` load settings file
+9. `-i, --ignore <name>` ignore named variable during render
+10. `-p, --profile <name>` apply profile
+11. `--benchmark` append timing output
+12. `-X, --debug` enable debug flag in effective settings
 
 Render args:
 
@@ -121,6 +129,8 @@ Interpolation:
 
 ```txt
 Hello {{ name }}
+{{ user.name }}
+{{ items[1] }}
 ```
 
 Include:
@@ -128,6 +138,25 @@ Include:
 ```txt
 {{ include "partials/header.txt" }}
 ```
+
+Include lookup order per root:
+
+1. `<include>.pbc`
+2. `<include>.pbt`
+3. `<include>`
+4. `<include>/index.pbc`
+5. `<include>/index.pbt`
+6. `<include>/index`
+
+Include roots are checked in this order:
+
+1. current file directory
+2. each CLI `-I/--include-path` in order
+3. settings `include_paths` in order
+4. legacy `include_path`
+5. `~/.local/share/prebyte`
+
+First matching root wins.
 
 Conditionals:
 
@@ -141,11 +170,32 @@ Disabled
 {{ endif }}
 ```
 
+Loops:
+
+```txt
+{{ for item in items }}{{ item }}{{ else }}empty{{ endfor }}
+{{ for key, value in user }}{{ key }}={{ value }};{{ endfor }}
+```
+
+Set:
+
+```txt
+{{ set title = name | trim | upper }}
+{{ title }}
+```
+
+Whitespace trim:
+
+```txt
+A {{- name -}} B
+```
+
 Native condition truthiness:
 
 1. `false`, `0`, `no`, `off`, and empty strings are false
 2. `true`, `1`, and other non-empty strings are true
-3. String checks are trimmed and case-insensitive
+3. string checks are trimmed and case-insensitive
+4. empty lists and empty objects are false
 
 Supported expression operators:
 
@@ -154,16 +204,84 @@ Supported expression operators:
 3. `||`
 4. `==`
 5. `!=`
-6. parentheses
+6. `<`, `>`, `<=`, `>=`
+7. `in`
+8. parentheses
 
 Builtins:
 
 1. `__TIME__`
 2. `__LINE__`
 3. `__FILE__`
-4. `ARGS[index]`
+4. `__FILENAME__`
+5. `__DIR__`
+6. `__EXTENSION__`
+7. `__DATE__`
+8. `__TIMESTAMP__`
+9. `__YEAR__`
+10. `__MONTH__`
+11. `__DAY__`
+12. `__UNIX_EPOCH__`
+13. `__USER__`
+14. `__HOST__`
+15. `__OS__`
+16. `__WORKING_DIR__`
+17. `__UUID__`
+18. `__RANDOM__`
+19. `ARGS[index]`
 
-Explicit Lua:
+Notes:
+
+1. `__DATE__` uses `YYYY-MM-DD`
+2. `__TIMESTAMP__` uses `YYYY-MM-DDTHH:MM:SS`
+3. `__EXTENSION__` has no leading dot
+4. dynamic builtins like `__UUID__` and `__RANDOM__` stay constant during one render
+
+Filters:
+
+1. `trim`
+2. `upper`
+3. `lower`
+4. `default(fallback)`
+5. `replace(from, to)`
+
+Examples:
+
+```txt
+{{ name | trim | upper }}
+{{ missing | default("fallback") }}
+{{ title | replace("_", "-") }}
+```
+
+## User Functions
+
+Native template function:
+
+```txt
+{{ fn greet(name) }}Hello {{ name }}{{ endfn }}
+{{ greet("Ada") }}
+```
+
+Lua-backed function:
+
+```txt
+{{ fn users() lua:block }}
+return { { name = "Ada" }, { name = "Grace" } }
+{{ endfn }}
+
+{{ for user in users() }}{{ user.name }};{{ endfor }}
+```
+
+Function rules:
+
+1. functions are available only after their definition
+2. function definitions do not produce output
+3. native template functions return rendered text as string
+4. Lua functions can return scalars, lists, objects, booleans, numbers, or null
+5. functions defined in a file are visible in later includes from that point
+6. functions defined inside an include stay local to that include
+
+## Explicit Lua
 
 ```txt
 {{ lua "return upper(name)" }}
@@ -223,10 +341,23 @@ Supported rules in current implementation:
 11. `include_path`
 12. `output_encoding`
 13. `allow_env`
-14. `error_on_false_input`
-15. `lua_instruction_limit`
-16. `lua_memory_limit_bytes`
-17. `debug`
+14. `forbidden_env_vars`
+15. `error_on_false_input`
+16. `lua_instruction_limit`
+17. `lua_memory_limit_bytes`
+18. `max_include_depth`
+19. `max_render_time_ms`
+20. `max_output_size_bytes`
+21. `max_loop_iteration`
+22. `debug`
+
+Rule notes:
+
+1. `output_encoding` supports `utf-8` and `utf-16`
+2. `output_encoding` only affects file output via `-o/--output` and `Prebyte::process(..., output_path)` / `process_file(..., output_path)`
+3. returned strings and stdout output stay UTF-8
+4. `error_on_false_input=false` keeps normal `if` / `elseif` fallback behavior
+5. `error_on_false_input=true` raises a runtime error when an `if` / `elseif` condition is falsey
 
 ## Settings File Shape
 
@@ -253,10 +384,17 @@ profiles:
 Supported top-level keys:
 
 1. `variables`
-2. `rules`
-3. `file_rules`
-4. `profiles`
-5. `ignore`
+2. `include_paths`
+3. `rules`
+4. `file_rules`
+5. `profiles`
+6. `ignore`
+
+Compiled templates:
+
+1. `.pbt` = source template
+2. `.pbc` = compiled template cache
+3. Prebyte prefers `.pbc` for includes when cache is still fresh
 
 Useful explain topics:
 
@@ -269,6 +407,8 @@ Useful explain topics:
 
 ## C++ API
 
+Convenience wrapper:
+
 ```cpp
 #include "PrebyteEngine.h"
 
@@ -280,6 +420,54 @@ int main() {
 }
 ```
 
+Embed API:
+
+```cpp
+#include "Engine.h"
+
+#include <iostream>
+
+int main() {
+    prebyte::Engine engine;
+    prebyte::CompiledTemplate tpl = engine.compile("Hello {{ name }}\n");
+
+    prebyte::RenderContext ctx;
+    ctx.set("name", "Ada");
+
+    std::string output = engine.render(tpl, ctx);
+
+    engine.render_to(tpl, [](std::string_view chunk) {
+        std::cout.write(chunk.data(), static_cast<std::streamsize>(chunk.size()));
+    }, ctx);
+}
+```
+
+Top-level compiled template:
+
+```cpp
+#include "Engine.h"
+
+int main() {
+    prebyte::Engine engine;
+    prebyte::CompiledTemplate tpl = engine.load_compiled_file("template.pbc");
+
+    prebyte::RenderContext ctx;
+    ctx.set("name", "Ada");
+
+    std::string output = engine.render(tpl, ctx);
+}
+```
+
+Embed API notes:
+
+1. `render()` is collecting wrapper over `render_to()`
+2. `RenderContext` accepts scalar and structured `Value`s
+3. `compile_file(path)` uses `path` for both source and logical path defaults
+4. sink chunk lifetime is only callback duration
+5. stream render may emit partial output before `DiagnosticError`
+6. use `load_compiled_file(path)` for top-level `.pbc` templates
+7. public API does not expose `.pbc` serialization yet; current `.pbc` files come from CLI/cache/internal serializer paths
+
 ## Architecture
 
 Current implementation is split into focused modules:
@@ -290,13 +478,8 @@ Current implementation is split into focused modules:
 4. `template/lexer/` tokens
 5. `template/parser/` recursive-descent parser
 6. `template/ast/` typed AST nodes
-7. `runtime/` renderer, include resolver, value resolution
+7. `runtime/` renderer, compiled executor, include resolver, value resolution, Lua runtime
 8. `support/` diagnostics and spans
-
-Phase-2 preparation hooks already exist for:
-
-1. alternate expression engines
-2. reserved loop directives
 
 ## Tests And Fixtures
 
@@ -305,12 +488,6 @@ Tests live in:
 1. `tests/unit/`
 2. `tests/integration/`
 3. `tests/fixtures/`
-
-## Breaking Changes
-
-1. legacy `%% ... %%` syntax removed
-2. old processor/context pipeline removed
-3. macros and loop directives are no longer available in Phase 1
 
 ## License
 

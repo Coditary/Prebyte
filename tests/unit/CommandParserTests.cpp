@@ -5,12 +5,14 @@
 
 TEST_CASE(CommandParser_parse_render_options) {
     prebyte::CommandParser parser;
-    const prebyte::Command command = parser.parse({"input.txt", "-o", "output.txt", "-Dname=Ada", "--benchmark", "-X"});
+    const prebyte::Command command = parser.parse({"input.txt", "-o", "output.txt", "-I", "shared", "-Dname=Ada", "--benchmark", "-X"});
 
     REQUIRE(command.input_path.has_value());
     REQUIRE_EQ(command.input_path->string(), std::string("input.txt"));
     REQUIRE(command.output_path.has_value());
     REQUIRE_EQ(command.output_path->string(), std::string("output.txt"));
+    REQUIRE_EQ(command.include_paths.size(), static_cast<std::size_t>(1));
+    REQUIRE_EQ(command.include_paths[0].string(), std::string("shared"));
     REQUIRE_EQ(command.define_args.size(), static_cast<std::size_t>(1));
     REQUIRE(command.benchmark);
     REQUIRE(command.debug);
@@ -39,11 +41,13 @@ TEST_CASE(CommandParser_parse_list_ignores_aliases) {
 
 TEST_CASE(CommandParser_parse_list_rules_with_options) {
     prebyte::CommandParser parser;
-    const prebyte::Command command = parser.parse({"list", "rules", "-s", "settings.yaml", "-p", "friendly", "-r", "trim=true"});
+    const prebyte::Command command = parser.parse({"list", "rules", "-s", "settings.yaml", "-I", "shared", "-p", "friendly", "-r", "trim=true"});
 
     REQUIRE_EQ(static_cast<int>(command.mode), static_cast<int>(prebyte::CommandMode::ListRules));
     REQUIRE(command.settings_path.has_value());
     REQUIRE_EQ(command.settings_path->string(), std::string("settings.yaml"));
+    REQUIRE_EQ(command.include_paths.size(), static_cast<std::size_t>(1));
+    REQUIRE_EQ(command.include_paths[0].string(), std::string("shared"));
     REQUIRE_EQ(command.profile_names.size(), static_cast<std::size_t>(1));
     REQUIRE_EQ(command.profile_names[0], std::string("friendly"));
     REQUIRE_EQ(command.rule_args.size(), static_cast<std::size_t>(1));

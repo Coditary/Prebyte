@@ -29,19 +29,24 @@ private:
     TemplateNodePtr parse_tag();
     std::unique_ptr<IncludeNode> parse_include();
     std::unique_ptr<IfNode> parse_if_block();
+    std::unique_ptr<ForNode> parse_for_block();
+    std::unique_ptr<SetNode> parse_set_statement();
+    std::unique_ptr<FunctionDefNode> parse_function_definition();
     std::unique_ptr<ExpressionNode> parse_if_condition(const std::string& branch_name);
     std::unique_ptr<LuaExprNode> parse_lua_expr();
     std::unique_ptr<LuaBlockNode> parse_lua_block();
     std::unique_ptr<InterpolationNode> parse_interpolation();
     std::unique_ptr<ExpressionNode> parse_expression();
+    std::unique_ptr<ExpressionNode> parse_pipe();
     std::unique_ptr<ExpressionNode> parse_or();
     std::unique_ptr<ExpressionNode> parse_and();
     std::unique_ptr<ExpressionNode> parse_equality();
+    std::unique_ptr<ExpressionNode> parse_comparison();
     std::unique_ptr<ExpressionNode> parse_unary();
+    std::unique_ptr<ExpressionNode> parse_postfix();
     std::unique_ptr<ExpressionNode> parse_primary();
-    std::string parse_raw_lua_body();
+    std::string parse_raw_body_until(TemplateTokenType terminator);
     Diagnostic make_error(const TemplateToken& token, const std::string& message) const;
-    TemplateNodePtr parse_loop_placeholder();
 
     std::vector<TemplateToken> tokens_;
     std::size_t current_ = 0;

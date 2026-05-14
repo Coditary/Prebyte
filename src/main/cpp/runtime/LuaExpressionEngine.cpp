@@ -5,7 +5,7 @@
 namespace prebyte {
 
 Value LuaExpressionEngine::evaluate(const ExpressionNode& expression, const EffectiveSettings& settings,
-                                    const RenderSession& session, const std::filesystem::path& current_file) const {
+                                    RenderSession& session, const std::filesystem::path& current_file) const {
     if (expression.kind != ExpressionKind::LuaCall) {
         Diagnostic diagnostic;
         diagnostic.code = "LUA002";
@@ -15,7 +15,7 @@ Value LuaExpressionEngine::evaluate(const ExpressionNode& expression, const Effe
     }
 
     if (!session.lua_runtime) {
-        const_cast<RenderSession&>(session).lua_runtime = std::make_shared<LuaRuntime>();
+        session.lua_runtime = std::make_shared<LuaRuntime>();
     }
 
     const auto& lua_expression = static_cast<const LuaCallExpr&>(expression);

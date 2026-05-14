@@ -9,6 +9,7 @@ namespace prebyte {
 
 struct RenderReport {
     std::string output;
+    std::string output_encoding = "utf-8";
     long long elapsed_micros = 0;
     std::size_t lua_cache_hits = 0;
     std::size_t lua_cache_misses = 0;

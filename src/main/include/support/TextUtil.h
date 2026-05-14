@@ -80,8 +80,7 @@ inline bool is_identifier_start(char ch) {
 }
 
 inline bool is_identifier_part(char ch) {
-    return std::isalnum(static_cast<unsigned char>(ch)) != 0 || ch == '_' || ch == '.' || ch == ':'
-        || ch == '[' || ch == ']';
+    return std::isalnum(static_cast<unsigned char>(ch)) != 0 || ch == '_' || ch == ':';
 }
 
 }

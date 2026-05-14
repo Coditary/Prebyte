@@ -12,7 +12,9 @@ namespace prebyte {
 class RuleResolver {
 public:
     ResolvedConfiguration resolve(const SettingsData& settings, const std::vector<std::string>& cli_rule_args,
-                                  const std::vector<std::string>& cli_ignore_names, bool debug_enabled) const;
+                                  const std::vector<std::string>& cli_ignore_names,
+                                  const std::vector<std::filesystem::path>& cli_include_paths,
+                                  bool debug_enabled) const;
 
     EffectiveSettings resolve_for_file(const ResolvedConfiguration& configuration,
                                        const std::filesystem::path& file_path) const;

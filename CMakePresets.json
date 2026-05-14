@@ -16,6 +16,18 @@
         "PREBYTE_BUILD_TESTS": "ON",
         "PREBYTE_BUILD_BENCHMARKS": "ON"
       }
+    },
+    {
+      "name": "coverage",
+      "displayName": "Coverage Ninja",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build-cmake/coverage",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "PREBYTE_BUILD_TESTS": "ON",
+        "PREBYTE_BUILD_BENCHMARKS": "OFF",
+        "PREBYTE_ENABLE_COVERAGE": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -37,12 +49,28 @@
       "name": "dev-compare-benchmark",
       "configurePreset": "dev",
       "targets": ["compare-benchmark"]
+    },
+    {
+      "name": "coverage",
+      "configurePreset": "coverage"
+    },
+    {
+      "name": "coverage-tests",
+      "configurePreset": "coverage",
+      "targets": ["prebyte_tests"]
     }
   ],
   "testPresets": [
     {
       "name": "dev",
       "configurePreset": "dev",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "coverage",
+      "configurePreset": "coverage",
       "output": {
         "outputOnFailure": true
       }

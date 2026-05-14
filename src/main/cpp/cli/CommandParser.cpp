@@ -92,6 +92,14 @@ Command CommandParser::parse(const std::vector<std::string>& args) const {
             continue;
         }
 
+        if (arg == "-I" || arg == "--include-path") {
+            if (index + 1 >= args.size()) {
+                throw DiagnosticError(make_cli_error("Missing include path"));
+            }
+            command.include_paths.push_back(args[++index]);
+            continue;
+        }
+
         if (arg == "-d" || arg == "--define") {
             if (index + 1 >= args.size()) {
                 throw DiagnosticError(make_cli_error("Missing define value"));

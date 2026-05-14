@@ -20,6 +20,19 @@ IncludeNode::IncludeNode(std::string path, SourceSpan span)
 IfNode::IfNode(SourceSpan span)
     : TemplateNode(TemplateNodeKind::If, std::move(span)) {}
 
+ForNode::ForNode(std::string value_name, std::unique_ptr<ExpressionNode> iterable,
+                 std::optional<std::string> key_name, SourceSpan span)
+    : TemplateNode(TemplateNodeKind::For, std::move(span)), value_name(std::move(value_name)),
+      key_name(std::move(key_name)), iterable(std::move(iterable)) {}
+
+SetNode::SetNode(std::string name, std::unique_ptr<ExpressionNode> expression, SourceSpan span)
+    : TemplateNode(TemplateNodeKind::Set, std::move(span)), name(std::move(name)), expression(std::move(expression)) {}
+
+FunctionDefNode::FunctionDefNode(std::string name, std::vector<std::string> parameters,
+                                 FunctionMode mode, SourceSpan span)
+    : TemplateNode(TemplateNodeKind::FunctionDef, std::move(span)), name(std::move(name)),
+      parameters(std::move(parameters)), mode(mode) {}
+
 LuaExprNode::LuaExprNode(std::string source, SourceSpan span)
     : TemplateNode(TemplateNodeKind::LuaExpr, std::move(span)), source(std::move(source)) {}
 

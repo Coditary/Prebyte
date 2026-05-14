@@ -7,6 +7,7 @@
 #include "io/InputReader.h"
 #include "io/OutputWriter.h"
 #include "runtime/BuiltinRegistry.h"
+#include "runtime/CompiledTemplateSerializer.h"
 #include "runtime/IncludeResolver.h"
 #include "runtime/LuaHelperRegistry.h"
 #include "runtime/Renderer.h"
@@ -32,7 +33,7 @@ ResolvedConfiguration resolve_configuration(const Command& command, const Settin
     ProfileMerger profile_merger;
     RuleResolver rule_resolver;
     SettingsData merged = profile_merger.merge(settings, command.profile_names);
-    return rule_resolver.resolve(merged, command.rule_args, command.ignore_names, command.debug);
+    return rule_resolver.resolve(merged, command.rule_args, command.ignore_names, command.include_paths, command.debug);
 }
 
 VariableContext resolve_variables(const Command& command, const ResolvedConfiguration& configuration) {
@@ -75,6 +76,12 @@ std::string format_name_list(const Range& names) {
 
 void AppRunner::run(const Command& command) const {
     OutputWriter writer;
+    if (command.mode == CommandMode::Render) {
+        const RenderReport report = render_report(command);
+        const std::string output = command.benchmark ? report.output + format_benchmark(report) : report.output;
+        writer.write(output, command.output_path, report.output_encoding);
+        return;
+    }
     writer.write(execute(command), command.output_path);
 }
 
@@ -113,17 +120,18 @@ RenderReport AppRunner::render_report(const Command& command) const {
     const ResolvedConfiguration configuration = resolve_configuration(command, settings);
     const EffectiveSettings effective_settings = rule_resolver.resolve_for_file(configuration, command.input_path.value_or(std::filesystem::path{}));
     const VariableContext variable_context = resolve_variables(command, configuration);
-
-    InputReader reader;
-    const InputBuffer input = command.inline_input.has_value()
-        ? InputBuffer::from_owned(*command.inline_input)
-        : reader.read(command.input_path);
+    VariableStore variable_store;
+    variable_store.set_all(variable_context.variables);
+    variable_store.set_all(variable_context.structured_variables);
+    std::map<std::filesystem::path, EffectiveSettings> effective_settings_cache;
+    effective_settings_cache.emplace(command.input_path.value_or(std::filesystem::path{}), effective_settings);
 
     RenderSession session;
-    session.configuration = configuration;
-    session.args = command.render_args;
-    session.ignore_names = variable_context.ignore_names;
-    session.variables.set_all(variable_context.variables);
+    session.configuration_ref = &configuration;
+    session.variables_ref = &variable_store;
+    session.args_ref = &command.render_args;
+    session.ignore_names_ref = &variable_context.ignore_names;
+    session.effective_settings_cache_ref = &effective_settings_cache;
     session.start_time = start_time;
 
     BuiltinRegistry builtins;
@@ -131,7 +139,30 @@ RenderReport AppRunner::render_report(const Command& command) const {
     IncludeResolver include_resolver;
     Renderer renderer(rule_resolver, include_resolver, expression_engine);
     RenderReport report;
-    report.output = renderer.render_source(input.view(), effective_settings, command.input_path.value_or(std::filesystem::path{}), session);
+    report.output_encoding = effective_settings.output_encoding;
+    CompiledTemplateSerializer serializer;
+    if (command.input_path.has_value() && command.input_path->extension() != ".pbc") {
+        if (const CompiledProgram* compiled = serializer.try_load_valid(serializer.compiled_path_for_source(*command.input_path), effective_settings)) {
+            report.output = renderer.render_program(*compiled, effective_settings, compiled->logical_path, session);
+        } else {
+            InputReader reader;
+            const InputBuffer input = command.inline_input.has_value()
+                ? InputBuffer::from_owned(*command.inline_input)
+                : reader.read(command.input_path);
+            report.output = renderer.render_source(input.view(), effective_settings, *command.input_path, session);
+        }
+    } else {
+        InputReader reader;
+        const InputBuffer input = command.inline_input.has_value()
+            ? InputBuffer::from_owned(*command.inline_input)
+            : reader.read(command.input_path);
+        if (command.input_path.has_value() && command.input_path->extension() == ".pbc") {
+            const CompiledProgram program = serializer.deserialize(input.view(), *command.input_path);
+            report.output = renderer.render_program(program, effective_settings, program.logical_path, session);
+        } else {
+            report.output = renderer.render_source(input.view(), effective_settings, command.input_path.value_or(std::filesystem::path{}), session);
+        }
+    }
 
     const auto elapsed = std::chrono::steady_clock::now() - start_time;
     report.elapsed_micros = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
@@ -166,6 +197,15 @@ std::string AppRunner::list_vars(const Command& command) const {
     for (const auto& [name, value] : variables.variables) {
         stream << name << '=' << value << '\n';
     }
+    for (const auto& [name, value] : variables.structured_variables) {
+        if (value.is_object()) {
+            stream << name << "={...}\n";
+        } else if (value.is_list()) {
+            stream << name << "=[...]\n";
+        } else {
+            stream << name << '=' << value.to_string() << '\n';
+        }
+    }
     return stream.str();
 }
 
@@ -191,7 +231,7 @@ std::string AppRunner::list_ignores(const Command& command) const {
 std::string AppRunner::explain(const Command& command) const {
     const std::string topic = text::to_lower(command.explain_topic.value_or(""));
     if (topic == "rule" || topic == "rules") {
-        return "Rules: --rule name=value sets global rule. --rule .ext::name=value scopes by extension. --rule file::name=value scopes exact file. List effective rules with 'list rules'. Lua rules: lua_instruction_limit, lua_memory_limit_bytes.\n";
+        return "Rules: --rule name=value sets global rule. --rule .ext::name=value scopes by extension. --rule file::name=value scopes exact file. Include roots: repeatable --include-path/-I, settings include_paths, legacy include_path, then ~/.local/share/prebyte. List effective rules with 'list rules'. output_encoding supports utf-8 and utf-16 for file output only. error_on_false_input rejects falsey if/elseif conditions. Env rules: allow_env, forbidden_env_vars. Runtime limits: max_include_depth, max_render_time_ms, max_output_size_bytes, max_loop_iteration. Lua rules: lua_instruction_limit, lua_memory_limit_bytes.\n";
     }
     if (topic == "ignore" || topic == "ignores") {
         return "Ignore names suppress matching lookups during render. Sources merge from settings ignore, selected profiles, and --ignore/-i. Inspect effective names with 'list ignore' or 'list ignores'.\n";
@@ -220,6 +260,7 @@ std::string AppRunner::help() const {
     std::ostringstream stream;
     stream << "prebyte [input] [options] [args...]\n"
             "  -o, --output <file>\n"
+            "  -I, --include-path <dir>\n"
             "  -Dname=value\n"
             "  -r, --rule <rule>\n"
             "  -s, --settings <file>\n"
@@ -230,6 +271,11 @@ std::string AppRunner::help() const {
             "  -- [args...] pass render args for stdin mode\n"
             "  list rules|vars|profiles|ignore|ignores [options]\n"
             "Render args: extra positional values after input, or after -- for stdin, available as ARGS[index].\n"
+            "Include roots: current file, CLI -I, settings include_paths, legacy include_path, ~/.local/share/prebyte. First matching root wins.\n"
+            "Output encoding: utf-8 or utf-16 for file output only (-o/--output).\n"
+            "False input guard: error_on_false_input rejects falsey if/elseif conditions.\n"
+            "Runtime limits: max_include_depth, max_render_time_ms, max_output_size_bytes, max_loop_iteration\n"
+            "Env guard: forbidden_env_vars\n"
             "Lua helpers: " << format_lua_helper_signatures() << "\n"
             "Lua limits: lua_instruction_limit=" << EffectiveSettings{}.lua_instruction_limit
             << ", lua_memory_limit_bytes=" << EffectiveSettings{}.lua_memory_limit_bytes << "\n";

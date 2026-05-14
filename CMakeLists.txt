@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(PREBYTE_BUILD_TESTS "Build test binary" ON)
 option(PREBYTE_BUILD_BENCHMARKS "Build benchmark binary" ON)
+option(PREBYTE_ENABLE_COVERAGE "Enable GCC/GCov coverage instrumentation" OFF)
 
 find_package(Lua REQUIRED)
 
@@ -60,6 +61,11 @@ target_link_libraries(prebyte_core
         dl
 )
 
+if(PREBYTE_ENABLE_COVERAGE)
+    target_compile_options(prebyte_core PUBLIC --coverage -O0 -g)
+    target_link_options(prebyte_core PUBLIC --coverage)
+endif()
+
 add_executable(prebyte src/main/cpp/main.cpp)
 target_link_libraries(prebyte PRIVATE prebyte_core)
 
@@ -75,6 +81,11 @@ if(PREBYTE_BUILD_TESTS)
     )
     target_include_directories(prebyte_tests PRIVATE tests)
     target_link_libraries(prebyte_tests PRIVATE prebyte_core)
+
+    if(PREBYTE_ENABLE_COVERAGE)
+        target_compile_options(prebyte_tests PRIVATE --coverage -O0 -g)
+        target_link_options(prebyte_tests PRIVATE --coverage)
+    endif()
 
     include(CTest)
     enable_testing()

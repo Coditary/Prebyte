@@ -17,6 +17,30 @@ Diagnostic make_lexer_error(const std::string& message, const std::string& file_
     return diagnostic;
 }
 
+void trim_right_ascii_whitespace(std::string& text) {
+    while (!text.empty()) {
+        const char ch = text.back();
+        if (ch != ' ' && ch != '\t' && ch != '\n' && ch != '\r') {
+            break;
+        }
+        text.pop_back();
+    }
+}
+
+void trim_left_ascii_whitespace(std::string& text) {
+    std::size_t start = 0;
+    while (start < text.size()) {
+        const char ch = text[start];
+        if (ch != ' ' && ch != '\t' && ch != '\n' && ch != '\r') {
+            break;
+        }
+        ++start;
+    }
+    if (start != 0) {
+        text.erase(0, start);
+    }
+}
+
 }
 
 TemplateLexer::TemplateLexer(std::string_view source, std::string file_path, std::string_view tag_prefix,
@@ -86,7 +110,12 @@ SourceSpan TemplateLexer::make_span(SourceLocation start) const {
 }
 
 void TemplateLexer::add_token(TemplateTokenType type, std::string lexeme, SourceLocation start) {
-    tokens_.push_back(TemplateToken{type, std::move(lexeme), make_span(start)});
+    add_token(type, std::move(lexeme), start, false, false);
+}
+
+void TemplateLexer::add_token(TemplateTokenType type, std::string lexeme, SourceLocation start,
+                              bool trim_left, bool trim_right) {
+    tokens_.push_back(TemplateToken{type, std::move(lexeme), make_span(start), trim_left, trim_right});
 }
 
 void TemplateLexer::lex_text() {
@@ -96,6 +125,11 @@ void TemplateLexer::lex_text() {
         text.push_back(advance());
     }
 
+    if (trim_next_text_left_) {
+        trim_left_ascii_whitespace(text);
+        trim_next_text_left_ = false;
+    }
+
     if (!text.empty()) {
         add_token(TemplateTokenType::Text, text, start);
     }
@@ -103,7 +137,18 @@ void TemplateLexer::lex_text() {
     if (!is_at_end() && match_literal(tag_prefix_)) {
         const SourceLocation tag_start = current_location();
         advance_literal(tag_prefix_);
-        add_token(TemplateTokenType::TagOpen, std::string(tag_prefix_), tag_start);
+        bool trim_left = false;
+        if (!is_at_end() && peek() == '-') {
+            trim_left = true;
+            advance();
+        }
+        if (trim_left && !tokens_.empty() && tokens_.back().type == TemplateTokenType::Text) {
+            trim_right_ascii_whitespace(tokens_.back().lexeme);
+            if (tokens_.back().lexeme.empty()) {
+                tokens_.pop_back();
+            }
+        }
+        add_token(TemplateTokenType::TagOpen, std::string(tag_prefix_), tag_start, trim_left, false);
         inside_tag_ = true;
     }
 }
@@ -117,7 +162,17 @@ void TemplateLexer::lex_inside_tag() {
     if (match_literal(tag_suffix_)) {
         const SourceLocation start = current_location();
         advance_literal(tag_suffix_);
-        add_token(TemplateTokenType::TagClose, std::string(tag_suffix_), start);
+        add_token(TemplateTokenType::TagClose, std::string(tag_suffix_), start, false, false);
+        inside_tag_ = false;
+        return;
+    }
+
+    if (peek() == '-' && match_literal(std::string("-") + std::string(tag_suffix_))) {
+        const SourceLocation start = current_location();
+        advance();
+        advance_literal(tag_suffix_);
+        add_token(TemplateTokenType::TagClose, std::string(tag_suffix_), start, false, true);
+        trim_next_text_left_ = true;
         inside_tag_ = false;
         return;
     }
@@ -152,6 +207,16 @@ void TemplateLexer::lex_inside_tag() {
         add_token(TemplateTokenType::EqualEqual, "==", start);
         return;
     }
+    if (match_literal("<=")) {
+        advance_literal("<=");
+        add_token(TemplateTokenType::LessEqual, "<=", start);
+        return;
+    }
+    if (match_literal(">=")) {
+        advance_literal(">=");
+        add_token(TemplateTokenType::GreaterEqual, ">=", start);
+        return;
+    }
     if (match_literal("!=")) {
         advance_literal("!=");
         add_token(TemplateTokenType::BangEqual, "!=", start);
@@ -167,9 +232,49 @@ void TemplateLexer::lex_inside_tag() {
         add_token(TemplateTokenType::LeftParen, "(", start);
         return;
     }
+    if (ch == '|') {
+        advance();
+        add_token(TemplateTokenType::Pipe, "|", start);
+        return;
+    }
+    if (ch == '[') {
+        advance();
+        add_token(TemplateTokenType::LeftBracket, "[", start);
+        return;
+    }
     if (ch == ')') {
         advance();
         add_token(TemplateTokenType::RightParen, ")", start);
+        return;
+    }
+    if (ch == ']') {
+        advance();
+        add_token(TemplateTokenType::RightBracket, "]", start);
+        return;
+    }
+    if (ch == '.') {
+        advance();
+        add_token(TemplateTokenType::Dot, ".", start);
+        return;
+    }
+    if (ch == ',') {
+        advance();
+        add_token(TemplateTokenType::Comma, ",", start);
+        return;
+    }
+    if (ch == '=') {
+        advance();
+        add_token(TemplateTokenType::Equal, "=", start);
+        return;
+    }
+    if (ch == '<') {
+        advance();
+        add_token(TemplateTokenType::Less, "<", start);
+        return;
+    }
+    if (ch == '>') {
+        advance();
+        add_token(TemplateTokenType::Greater, ">", start);
         return;
     }
 
@@ -193,6 +298,14 @@ void TemplateLexer::lex_identifier_or_keyword() {
         add_token(TemplateTokenType::KeywordIf, value, start);
         return;
     }
+    if (value == "for") {
+        add_token(TemplateTokenType::KeywordFor, value, start);
+        return;
+    }
+    if (value == "in") {
+        add_token(TemplateTokenType::KeywordIn, value, start);
+        return;
+    }
     if (value == "elseif") {
         add_token(TemplateTokenType::KeywordElseIf, value, start);
         return;
@@ -205,8 +318,24 @@ void TemplateLexer::lex_identifier_or_keyword() {
         add_token(TemplateTokenType::KeywordEndIf, value, start);
         return;
     }
+    if (value == "endfor") {
+        add_token(TemplateTokenType::KeywordEndFor, value, start);
+        return;
+    }
     if (value == "include") {
         add_token(TemplateTokenType::KeywordInclude, value, start);
+        return;
+    }
+    if (value == "set") {
+        add_token(TemplateTokenType::KeywordSet, value, start);
+        return;
+    }
+    if (value == "fn") {
+        add_token(TemplateTokenType::KeywordFn, value, start);
+        return;
+    }
+    if (value == "endfn") {
+        add_token(TemplateTokenType::KeywordEndFn, value, start);
         return;
     }
     if (value == "lua") {
@@ -223,6 +352,10 @@ void TemplateLexer::lex_identifier_or_keyword() {
     }
     if (value == "true" || value == "false") {
         add_token(TemplateTokenType::Boolean, value, start);
+        return;
+    }
+    if (value == "in") {
+        add_token(TemplateTokenType::KeywordIn, value, start);
         return;
     }
 

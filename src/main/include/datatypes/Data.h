@@ -93,6 +93,7 @@ public:
      * @throws std::bad_variant_access if the type is not string.
      */
     std::string as_string() const;
+    const std::string& as_string_ref() const;
 
     /**
      * @brief Returns the value as an int.

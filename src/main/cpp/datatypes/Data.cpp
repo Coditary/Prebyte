@@ -10,6 +10,13 @@ std::string Data::as_string() const {
     throw std::bad_variant_access();
 }
 
+const std::string& Data::as_string_ref() const {
+    if (!is_string()) {
+        throw std::bad_variant_access();
+    }
+    return std::get<std::string>(value);
+}
+
 int Data::as_int() const {
     if (is_string()) {
         const auto& str = std::get<std::string>(value);

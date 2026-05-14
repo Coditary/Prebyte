@@ -24,6 +24,7 @@ private:
     SourceLocation current_location() const;
     SourceSpan make_span(SourceLocation start) const;
     void add_token(TemplateTokenType type, std::string lexeme, SourceLocation start);
+    void add_token(TemplateTokenType type, std::string lexeme, SourceLocation start, bool trim_left, bool trim_right);
     void lex_text();
     void lex_inside_tag();
     void skip_tag_whitespace();
@@ -40,6 +41,7 @@ private:
     std::size_t line_ = 1;
     std::size_t column_ = 1;
     bool inside_tag_ = false;
+    bool trim_next_text_left_ = false;
 };
 
 }

@@ -28,7 +28,26 @@ BinaryExpr::BinaryExpr(std::unique_ptr<ExpressionNode> left, std::string op, std
 GroupedExpr::GroupedExpr(std::unique_ptr<ExpressionNode> expression, SourceSpan span)
     : ExpressionNode(ExpressionKind::Grouped, std::move(span)), expression(std::move(expression)) {}
 
+MemberAccessExpr::MemberAccessExpr(std::unique_ptr<ExpressionNode> base, std::string member, SourceSpan span)
+    : ExpressionNode(ExpressionKind::MemberAccess, std::move(span)), base(std::move(base)), member(std::move(member)) {}
+
+IndexAccessExpr::IndexAccessExpr(std::unique_ptr<ExpressionNode> base, std::unique_ptr<ExpressionNode> index, SourceSpan span)
+    : ExpressionNode(ExpressionKind::IndexAccess, std::move(span)), base(std::move(base)), index(std::move(index)) {}
+
+LenCallExpr::LenCallExpr(std::unique_ptr<ExpressionNode> operand, SourceSpan span)
+    : ExpressionNode(ExpressionKind::LenCall, std::move(span)), operand(std::move(operand)) {}
+
 LuaCallExpr::LuaCallExpr(std::string source, SourceSpan span)
     : ExpressionNode(ExpressionKind::LuaCall, std::move(span)), source(std::move(source)) {}
+
+FilterCallExpr::FilterCallExpr(std::unique_ptr<ExpressionNode> input, std::string name,
+                               std::vector<std::unique_ptr<ExpressionNode>> arguments, SourceSpan span)
+    : ExpressionNode(ExpressionKind::FilterCall, std::move(span)), input(std::move(input)),
+      name(std::move(name)), arguments(std::move(arguments)) {}
+
+FunctionCallExpr::FunctionCallExpr(std::string name, std::vector<std::unique_ptr<ExpressionNode>> arguments,
+                                   SourceSpan span)
+    : ExpressionNode(ExpressionKind::FunctionCall, std::move(span)), name(std::move(name)),
+      arguments(std::move(arguments)) {}
 
 }

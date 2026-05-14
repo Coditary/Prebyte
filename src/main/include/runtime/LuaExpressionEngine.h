@@ -8,7 +8,7 @@ namespace prebyte {
 class LuaExpressionEngine : public ExpressionEngine {
 public:
     Value evaluate(const ExpressionNode& expression, const EffectiveSettings& settings,
-                   const RenderSession& session, const std::filesystem::path& current_file) const override;
+                   RenderSession& session, const std::filesystem::path& current_file) const override;
 };
 
 }

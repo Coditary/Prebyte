@@ -20,6 +20,7 @@ SettingsData ProfileMerger::merge(const SettingsData& settings, const std::vecto
         for (const auto& [name, value] : profile.variables) {
             merged.variables[name] = value;
         }
+        merged.include_paths.insert(merged.include_paths.end(), profile.include_paths.begin(), profile.include_paths.end());
         merged.ignore_names.insert(merged.ignore_names.end(), profile.ignore_names.begin(), profile.ignore_names.end());
         for (const auto& [name, value] : profile.rules) {
             merged.rules[name] = value;

@@ -15,17 +15,33 @@ enum class TemplateTokenType {
     String,
     Number,
     Boolean,
+    KeywordFor,
+    KeywordIn,
     KeywordIf,
     KeywordElseIf,
     KeywordElse,
     KeywordEndIf,
+    KeywordEndFor,
     KeywordInclude,
+    KeywordSet,
+    KeywordFn,
+    KeywordEndFn,
     KeywordLua,
     KeywordLuaBlock,
     KeywordEndLua,
+    Dot,
     LeftParen,
     RightParen,
+    LeftBracket,
+    RightBracket,
+    Comma,
+    Pipe,
+    Equal,
     Bang,
+    Less,
+    Greater,
+    LessEqual,
+    GreaterEqual,
     AndAnd,
     OrOr,
     EqualEqual,
@@ -36,6 +52,8 @@ struct TemplateToken {
     TemplateTokenType type = TemplateTokenType::EndOfFile;
     std::string lexeme;
     SourceSpan span;
+    bool trim_left = false;
+    bool trim_right = false;
 };
 
 }

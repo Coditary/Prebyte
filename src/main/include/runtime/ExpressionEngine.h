@@ -14,7 +14,7 @@ public:
     virtual ~ExpressionEngine() = default;
 
     virtual Value evaluate(const ExpressionNode& expression, const EffectiveSettings& settings,
-                           const RenderSession& session, const std::filesystem::path& current_file) const = 0;
+                           RenderSession& session, const std::filesystem::path& current_file) const = 0;
 };
 
 }

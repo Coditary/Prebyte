@@ -84,6 +84,10 @@ ProfileConfig parse_profile(const Data& value) {
     if (auto it = map.find("variables"); it != map.end()) {
         profile.variables = to_string_map(it->second);
     }
+    if (auto it = map.find("include_paths"); it != map.end()) {
+        const std::vector<std::string> include_paths = to_string_list(it->second);
+        profile.include_paths.assign(include_paths.begin(), include_paths.end());
+    }
     if (auto it = map.find("ignore"); it != map.end()) {
         profile.ignore_names = to_string_list(it->second);
     }
@@ -117,6 +121,10 @@ SettingsData SettingsLoader::load(const std::filesystem::path& path) const {
 
     if (auto it = map.find("variables"); it != map.end()) {
         settings.variables = to_string_map(it->second);
+    }
+    if (auto it = map.find("include_paths"); it != map.end()) {
+        const std::vector<std::string> include_paths = to_string_list(it->second);
+        settings.include_paths.assign(include_paths.begin(), include_paths.end());
     }
     if (auto it = map.find("ignore"); it != map.end()) {
         settings.ignore_names = to_string_list(it->second);

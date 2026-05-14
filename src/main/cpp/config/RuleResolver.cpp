@@ -32,10 +32,31 @@ std::size_t parse_size(const std::string& value) {
     }
 }
 
+std::set<std::string> parse_name_set(const std::string& value) {
+    std::set<std::string> names;
+    for (std::string entry : text::split(value, ',')) {
+        entry = text::trim(std::move(entry));
+        if (!entry.empty()) {
+            names.insert(std::move(entry));
+        }
+    }
+    return names;
+}
+
+std::string parse_output_encoding(const std::string& value) {
+    const std::string normalized = text::to_lower(text::trim(value));
+    if (normalized == "utf-8" || normalized == "utf-16") {
+        return normalized;
+    }
+    throw DiagnosticError(make_rule_error("Unsupported output encoding: " + value));
+}
+
 }
 
 ResolvedConfiguration RuleResolver::resolve(const SettingsData& settings, const std::vector<std::string>& cli_rule_args,
-                                            const std::vector<std::string>& cli_ignore_names, bool debug_enabled) const {
+                                            const std::vector<std::string>& cli_ignore_names,
+                                            const std::vector<std::filesystem::path>& cli_include_paths,
+                                            bool debug_enabled) const {
     ResolvedConfiguration configuration;
     configuration.variables = settings.variables;
     configuration.ignore_names = std::set<std::string>(settings.ignore_names.begin(), settings.ignore_names.end());
@@ -61,6 +82,10 @@ ResolvedConfiguration RuleResolver::resolve(const SettingsData& settings, const 
     for (const auto& [name, value] : configuration.global_rules) {
         apply_rule(configuration.base_settings, name, value);
     }
+
+    configuration.base_settings.include_paths = cli_include_paths;
+    configuration.base_settings.include_paths.insert(configuration.base_settings.include_paths.end(),
+                                                     settings.include_paths.begin(), settings.include_paths.end());
 
     return configuration;
 }
@@ -154,11 +179,15 @@ void RuleResolver::apply_rule(EffectiveSettings& settings, const std::string& na
         return;
     }
     if (name == "output_encoding") {
-        settings.output_encoding = value;
+        settings.output_encoding = parse_output_encoding(value);
         return;
     }
     if (name == "allow_env") {
         settings.allow_env = parse_bool(value);
+        return;
+    }
+    if (name == "forbidden_env_vars") {
+        settings.forbidden_env_vars = parse_name_set(value);
         return;
     }
     if (name == "error_on_false_input") {
@@ -171,6 +200,22 @@ void RuleResolver::apply_rule(EffectiveSettings& settings, const std::string& na
     }
     if (name == "lua_memory_limit_bytes") {
         settings.lua_memory_limit_bytes = parse_size(value);
+        return;
+    }
+    if (name == "max_include_depth") {
+        settings.max_include_depth = parse_size(value);
+        return;
+    }
+    if (name == "max_render_time_ms") {
+        settings.max_render_time_ms = parse_size(value);
+        return;
+    }
+    if (name == "max_output_size_bytes") {
+        settings.max_output_size_bytes = parse_size(value);
+        return;
+    }
+    if (name == "max_loop_iteration") {
+        settings.max_loop_iteration = parse_size(value);
         return;
     }
     if (name == "debug") {

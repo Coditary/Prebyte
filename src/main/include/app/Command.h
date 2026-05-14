@@ -24,6 +24,7 @@ struct Command {
     std::optional<std::filesystem::path> output_path;
     std::optional<std::string> inline_input;
     std::vector<std::string> render_args;
+    std::vector<std::filesystem::path> include_paths;
     std::vector<std::string> define_args;
     std::vector<std::string> rule_args;
     std::vector<std::string> ignore_names;

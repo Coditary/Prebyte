@@ -3,6 +3,7 @@
 #include "runtime/LuaHeaders.h"
 
 #include <cstdlib>
+#include <limits>
 
 #include "support/Diagnostic.h"
 
@@ -18,10 +19,6 @@ Diagnostic make_lua_error(const std::string& message, const SourceSpan& span) {
     return diagnostic;
 }
 
-void instruction_guard(lua_State* state, lua_Debug*) {
-    luaL_error(state, "Lua instruction limit exceeded");
-}
-
 }
 
 LuaRuntime::LuaRuntime() {
@@ -30,6 +27,7 @@ LuaRuntime::LuaRuntime() {
     if (state_ == nullptr) {
         throw std::runtime_error("Failed to initialize Lua state");
     }
+    *static_cast<LuaRuntime**>(lua_getextraspace(state_)) = this;
     sandbox_.install(state_);
 }
 
@@ -43,8 +41,14 @@ Value LuaRuntime::execute(const std::string& source, LuaChunkMode mode, const Ef
                           const RenderSession& session, const std::filesystem::path& current_file,
                           const SourceSpan& span) const {
     instruction_limit_ = settings.lua_instruction_limit;
+    hook_step_ = settings.max_render_time_ms == std::numeric_limits<std::size_t>::max()
+        ? std::max<std::size_t>(instruction_limit_, 1)
+        : std::max<std::size_t>(1, std::min<std::size_t>(instruction_limit_, kTimeCheckInstructionStep));
+    instructions_executed_ = 0;
     memory_limit_bytes_ = settings.lua_memory_limit_bytes;
     memory_limit_exceeded_ = false;
+    active_session_ = &session;
+    active_settings_ = &settings;
     RenderSession& mutable_session = const_cast<RenderSession&>(session);
     const int reference = load_chunk(source, mode, span, mutable_session);
 
@@ -54,20 +58,41 @@ Value LuaRuntime::execute(const std::string& source, LuaChunkMode mode, const Ef
         lua_pop(state_, 1);
         throw DiagnosticError(make_lua_error("Failed to attach Lua execution environment", span));
     }
-    lua_sethook(state_, instruction_guard, LUA_MASKCOUNT, static_cast<int>(instruction_limit_));
+    lua_sethook(state_, instruction_guard, LUA_MASKCOUNT, static_cast<int>(hook_step_));
 
     if (lua_pcall(state_, 0, 1, 0) != LUA_OK) {
         const std::string error = take_error_message(state_);
         lua_pop(state_, 1);
         lua_sethook(state_, nullptr, 0, 0);
         lua_gc(state_, LUA_GCCOLLECT, 0);
+        active_session_ = nullptr;
+        active_settings_ = nullptr;
         throw DiagnosticError(make_lua_error(error, span));
     }
 
     lua_sethook(state_, nullptr, 0, 0);
+    active_session_ = nullptr;
+    active_settings_ = nullptr;
     Value value = value_bridge_.read_value(state_, -1);
     lua_pop(state_, 1);
     return value;
+}
+
+void LuaRuntime::instruction_guard(lua_State* state, lua_Debug*) {
+    LuaRuntime* runtime = *static_cast<LuaRuntime**>(lua_getextraspace(state));
+    if (runtime != nullptr) {
+        runtime->handle_instruction_guard(state);
+    }
+}
+
+void LuaRuntime::handle_instruction_guard(lua_State* state) const {
+    instructions_executed_ += hook_step_;
+    if (instructions_executed_ >= instruction_limit_) {
+        luaL_error(state, "Lua instruction limit exceeded");
+    }
+    if (active_session_ != nullptr && active_settings_ != nullptr && active_session_->render_time_exceeded(*active_settings_)) {
+        luaL_error(state, "Render time limit exceeded");
+    }
 }
 
 int LuaRuntime::load_chunk(const std::string& source, LuaChunkMode mode, const SourceSpan& span,

@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "support/SourceSpan.h"
 
@@ -15,7 +16,12 @@ enum class ExpressionKind {
     Unary,
     Binary,
     Grouped,
+    MemberAccess,
+    IndexAccess,
+    LenCall,
     LuaCall,
+    FilterCall,
+    FunctionCall,
 };
 
 class ExpressionNode {
@@ -81,11 +87,52 @@ public:
     std::unique_ptr<ExpressionNode> expression;
 };
 
+class MemberAccessExpr final : public ExpressionNode {
+public:
+    MemberAccessExpr(std::unique_ptr<ExpressionNode> base, std::string member, SourceSpan span = {});
+
+    std::unique_ptr<ExpressionNode> base;
+    std::string member;
+};
+
+class IndexAccessExpr final : public ExpressionNode {
+public:
+    IndexAccessExpr(std::unique_ptr<ExpressionNode> base, std::unique_ptr<ExpressionNode> index, SourceSpan span = {});
+
+    std::unique_ptr<ExpressionNode> base;
+    std::unique_ptr<ExpressionNode> index;
+};
+
+class LenCallExpr final : public ExpressionNode {
+public:
+    LenCallExpr(std::unique_ptr<ExpressionNode> operand, SourceSpan span = {});
+
+    std::unique_ptr<ExpressionNode> operand;
+};
+
 class LuaCallExpr final : public ExpressionNode {
 public:
     LuaCallExpr(std::string source, SourceSpan span = {});
 
     std::string source;
+};
+
+class FilterCallExpr final : public ExpressionNode {
+public:
+    FilterCallExpr(std::unique_ptr<ExpressionNode> input, std::string name,
+                   std::vector<std::unique_ptr<ExpressionNode>> arguments, SourceSpan span = {});
+
+    std::unique_ptr<ExpressionNode> input;
+    std::string name;
+    std::vector<std::unique_ptr<ExpressionNode>> arguments;
+};
+
+class FunctionCallExpr final : public ExpressionNode {
+public:
+    FunctionCallExpr(std::string name, std::vector<std::unique_ptr<ExpressionNode>> arguments, SourceSpan span = {});
+
+    std::string name;
+    std::vector<std::unique_ptr<ExpressionNode>> arguments;
 };
 
 }

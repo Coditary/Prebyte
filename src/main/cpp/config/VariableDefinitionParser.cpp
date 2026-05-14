@@ -2,10 +2,13 @@
 
 #include "datatypes/Data.h"
 #include "parser/FileParser.h"
+#include "runtime/FileMetadataCache.h"
 #include "support/Diagnostic.h"
 
 #include <fstream>
 #include <iterator>
+#include <map>
+#include <mutex>
 
 namespace prebyte {
 
@@ -25,6 +28,68 @@ std::string read_file(const std::filesystem::path& path) {
     }
     return std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
 }
+
+Value data_to_value(const Data& data) {
+    return Value::from_data(data);
+}
+
+struct StructuredImportCacheEntry {
+    std::int64_t mtime_ticks = 0;
+    Value value;
+};
+
+class StructuredImportCache {
+public:
+    static StructuredImportCache& instance() {
+        static StructuredImportCache cache;
+        return cache;
+    }
+
+    std::optional<Value> load(const std::filesystem::path& path) {
+        const std::filesystem::path normalized = normalize(path);
+        const FileMetadata metadata = FileMetadataCache::instance().probe(normalized);
+        if (!metadata.exists) {
+            return std::nullopt;
+        }
+
+        std::lock_guard lock(mutex_);
+        auto it = cache_.find(normalized);
+        if (it == cache_.end() || it->second.mtime_ticks != metadata.mtime_ticks) {
+            return std::nullopt;
+        }
+        return it->second.value;
+    }
+
+    void store(const std::filesystem::path& path, Value value) {
+        const std::filesystem::path normalized = normalize(path);
+        const FileMetadata metadata = FileMetadataCache::instance().probe(normalized);
+        if (!metadata.exists) {
+            return;
+        }
+
+        std::lock_guard lock(mutex_);
+        cache_[normalized] = StructuredImportCacheEntry{.mtime_ticks = metadata.mtime_ticks, .value = std::move(value)};
+    }
+
+private:
+    static std::filesystem::path normalize(const std::filesystem::path& path) {
+        if (path.empty()) {
+            return {};
+        }
+        if (path.is_absolute()) {
+            return path.lexically_normal();
+        }
+        std::error_code error;
+        const std::filesystem::path cwd = std::filesystem::current_path(error);
+        if (error) {
+            return path.lexically_normal();
+        }
+        return (cwd / path).lexically_normal();
+    }
+
+    std::mutex mutex_;
+    std::map<std::filesystem::path, StructuredImportCacheEntry> cache_;
+};
 
 }
 
@@ -57,15 +122,17 @@ void VariableDefinitionParser::parse_define(const std::string& define_arg, Varia
     std::string value = define_arg.substr(equals + 1);
 
     if (value.size() >= 2 && value[0] == '@' && value[1] == '@') {
+        context.structured_variables.erase(name);
         context.variables[name] = value.substr(1);
         return;
     }
 
     if (!value.empty() && value[0] == '@') {
-        context.variables[name] = read_file(value.substr(1));
+        import_named_file(name, value.substr(1), context);
         return;
     }
 
+    context.structured_variables.erase(name);
     context.variables[name] = value;
 }
 
@@ -78,6 +145,33 @@ void VariableDefinitionParser::import_file(const std::filesystem::path& path, Va
         throw DiagnosticError(make_variable_error(error.what()));
     }
     flatten_data("", data, context);
+}
+
+void VariableDefinitionParser::import_named_file(const std::string& name, const std::filesystem::path& path,
+                                                 VariableContext& context) const {
+    if (!is_structured_import_path(path)) {
+        context.structured_variables.erase(name);
+        context.variables[name] = read_file(path);
+        return;
+    }
+
+    if (const auto cached = StructuredImportCache::instance().load(path)) {
+        context.variables.erase(name);
+        context.structured_variables[name] = *cached;
+        return;
+    }
+
+    FileParser file_parser;
+    Data data;
+    try {
+        data = file_parser.parse(path.string());
+    } catch (const std::exception& error) {
+        throw DiagnosticError(make_variable_error(error.what()));
+    }
+    context.variables.erase(name);
+    Value value = data_to_value(data);
+    StructuredImportCache::instance().store(path, value);
+    context.structured_variables[name] = std::move(value);
 }
 
 void VariableDefinitionParser::flatten_data(const std::string& prefix, const Data& data, VariableContext& context) const {
@@ -98,6 +192,12 @@ void VariableDefinitionParser::flatten_data(const std::string& prefix, const Dat
     }
 
     context.variables[prefix] = data.is_null() ? std::string() : data.as_string();
+}
+
+bool VariableDefinitionParser::is_structured_import_path(const std::filesystem::path& path) const {
+    const std::string extension = path.extension().string();
+    return extension == ".json" || extension == ".yaml" || extension == ".yml"
+        || extension == ".toml" || extension == ".ini" || extension == ".env";
 }
 
 }

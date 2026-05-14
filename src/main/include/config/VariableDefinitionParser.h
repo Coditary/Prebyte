@@ -16,7 +16,9 @@ public:
 private:
     void parse_define(const std::string& define_arg, VariableContext& context) const;
     void import_file(const std::filesystem::path& path, VariableContext& context) const;
+    void import_named_file(const std::string& name, const std::filesystem::path& path, VariableContext& context) const;
     void flatten_data(const std::string& prefix, const class Data& data, VariableContext& context) const;
+    bool is_structured_import_path(const std::filesystem::path& path) const;
 };
 
 }
