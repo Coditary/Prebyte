@@ -191,7 +191,7 @@ Installed package files will live under a versioned data root:
 A stable user-facing symlink will be managed at:
 
 ```text
-~/.local/share/bin/prebyte
+~/.local/bin/prebyte
 ```
 
 That symlink will point to the installed versioned binary.
@@ -199,7 +199,7 @@ That symlink will point to the installed versioned binary.
 Example:
 
 ```text
-~/.local/share/bin/prebyte -> ~/.local/share/prebyte/1.0.0-1+r0/bin/prebyte
+~/.local/bin/prebyte -> ~/.local/share/prebyte/1.0.0-1+r0/bin/prebyte
 ```
 
 This keeps each installed package version isolated while still exposing one stable executable path.
@@ -221,10 +221,10 @@ Install behavior:
 1. compute package version root under `~/.local/share/prebyte/<version>-<release>+r<revision>`
 2. ensure versioned `bin` directory exists
 3. ensure versioned `share/doc/prebyte` directory exists
-4. ensure `~/.local/share/bin` exists
+4. ensure `~/.local/bin` exists
 5. copy payload files into the versioned location
 6. register created directories and copied files with `context.artifacts.register_*`
-7. create or replace symlink `~/.local/share/bin/prebyte` to point to versioned binary
+7. create or replace symlink `~/.local/bin/prebyte` to point to versioned binary
 8. register the symlink with `context.artifacts.register_symlink`
 9. return success
 
@@ -243,7 +243,7 @@ Rules for the hook:
 
 Symlink behavior:
 
-- install always points `~/.local/share/bin/prebyte` at the version being installed
+- install always points `~/.local/bin/prebyte` at the version being installed
 - the stable symlink is considered the active executable path
 
 ## Remove Hook Behavior

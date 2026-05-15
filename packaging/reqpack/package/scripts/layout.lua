@@ -46,7 +46,7 @@ function M.paths(context)
   local share_dir = M.join_path(version_root, "share")
   local doc_dir = M.join_path(share_dir, "doc")
   local package_doc_dir = M.join_path(doc_dir, "prebyte")
-  local stable_bin_dir = M.join_path(share_root, "bin")
+  local stable_bin_dir = M.join_path(local_root, "bin")
   local binary_path = M.join_path(bin_dir, "prebyte")
   local symlink_path = M.join_path(stable_bin_dir, "prebyte")
 

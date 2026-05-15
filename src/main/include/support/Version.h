@@ -4,6 +4,6 @@
 
 namespace prebyte {
 
-inline constexpr std::string_view VERSION = "v1.0.3";
+inline constexpr std::string_view VERSION = "v1.0.4";
 
 }

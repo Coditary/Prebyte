@@ -5,7 +5,7 @@ ARG UBUNTU_VERSION=24.04
 FROM --platform=$BUILDPLATFORM ubuntu:${UBUNTU_VERSION} AS build
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG PREBYTE_VERSION=1.0.3
+ARG PREBYTE_VERSION=1.0.4
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -36,7 +36,7 @@ RUN cmake -S . -B build -G Ninja \
 FROM ubuntu:${UBUNTU_VERSION} AS runtime
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG PREBYTE_VERSION=1.0.3
+ARG PREBYTE_VERSION=1.0.4
 ARG BUILD_DATE
 
 RUN apt-get update \
