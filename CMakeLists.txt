@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.31)
 
-project(Prebyte VERSION 1.0.0 LANGUAGES CXX)
+project(Prebyte VERSION 1.0.3 LANGUAGES CXX)
 
 include(CTest)
 
