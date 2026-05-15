@@ -63,11 +63,12 @@ Build current-host ReqPack package on Linux or macOS:
 make reqpack
 ```
 
-Output is written to `dist/`.
+Output is written to `dist/`, including target `.rqp` and `index.json`.
 
 ## Releases
 
 Tagged releases publish versioned binaries to [GitHub Releases](https://github.com/Coditary/Prebyte/releases).
+Linux/macOS releases also publish ReqPack `.rqp` assets plus `index.json` for ReqPack repository consumption.
 
 Container images are published to GHCR for Linux `x86_64` and `aarch64`:
 

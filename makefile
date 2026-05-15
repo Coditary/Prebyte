@@ -1,4 +1,4 @@
-.PHONY: all start run test benchmark compare-benchmark configure reqpack clean
+.PHONY: all start run test benchmark compare-benchmark configure reqpack reqpack-index clean
 
 CMAKE_PRESET ?= dev
 CMAKE_BUILD_DIR := build-cmake/dev
@@ -47,7 +47,15 @@ reqpack: start
 		--platform "$$platform" \
 		--arch "$$arch" \
 		--binary "$(CMAKE_BUILD_DIR)/prebyte" \
-		--output-dir "$(REQPACK_OUTPUT_DIR)"
+		--output-dir "$(REQPACK_OUTPUT_DIR)"; \
+	python3 scripts/ci/build_reqpack_index.py \
+		--dist-dir "$(REQPACK_OUTPUT_DIR)" \
+		--output "$(REQPACK_OUTPUT_DIR)/index.json"
+
+reqpack-index:
+	python3 scripts/ci/build_reqpack_index.py \
+		--dist-dir "$(REQPACK_OUTPUT_DIR)" \
+		--output "$(REQPACK_OUTPUT_DIR)/index.json"
 
 clean:
 	rm -rf build build-cmake "$(COMPARE_DIR)/bench_prebyte"
