@@ -101,7 +101,7 @@ RenderSession::LoopFrame make_loop_frame(std::string_view first_name, Value firs
 std::optional<Value> try_map_member(const Value::Object& object, std::string_view key) {
     for (const auto& [entry_key, entry_value] : object) {
         if (entry_key == key) {
-            return Value::borrowed_data(entry_value);
+            return Value::from_data(entry_value);
         }
     }
     return std::nullopt;

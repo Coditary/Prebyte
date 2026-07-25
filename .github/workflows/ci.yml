@@ -54,16 +54,14 @@ jobs:
             arch: x86_64
             vcpkg_triplet: x64-windows-static
             python_cmd: python
-            binary_path: build/Release/prebyte.exe
-            cmake_arch: x64
+            binary_path: build/prebyte.exe
           - name: windows-aarch64
             runner: windows-11-arm
             platform: windows
             arch: aarch64
             vcpkg_triplet: arm64-windows-static
             python_cmd: python
-            binary_path: build/Release/prebyte.exe
-            cmake_arch: ARM64
+            binary_path: build/prebyte.exe
 
     steps:
       - name: Checkout repository
@@ -118,7 +116,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -A "${{ matrix.cmake_arch }}" `
+          cmake -S . -B build -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake" `
             -DVCPKG_TARGET_TRIPLET="${{ matrix.vcpkg_triplet }}" `
             -DPREBYTE_BUILD_TESTS=ON `
@@ -135,7 +134,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          cmake --build build --config Release --parallel
+          cmake --build build --parallel
 
       - name: Test (Unix)
         if: runner.os != 'Windows'
@@ -148,7 +147,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          ctest --test-dir build -C Release --output-on-failure
+          ctest --test-dir build --output-on-failure
 
       - name: Package release artifact (Unix)
         if: startsWith(github.ref, 'refs/tags/v') && runner.os != 'Windows'

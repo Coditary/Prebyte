@@ -85,6 +85,9 @@ TEST_CASE(VariableDefinitionParser_named_structured_toml_import) {
     const auto host = server->member("host");
     REQUIRE(host.has_value());
     REQUIRE_EQ(host->to_string(), std::string("localhost"));
+    const auto port = server->member("port");
+    REQUIRE(port.has_value());
+    REQUIRE_EQ(port->to_string(), std::string("8080"));
 }
 
 TEST_CASE(VariableDefinitionParser_named_raw_text_import_for_unknown_extension) {

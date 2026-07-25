@@ -338,11 +338,14 @@ void Value::append_to(std::string& output) const {
         return;
     }
     if (std::holds_alternative<double>(storage_)) {
-        output += std::format("{}", std::get<double>(storage_));
+        std::ostringstream stream;
+        stream << std::get<double>(storage_);
+        output.append(stream.str());
         return;
     }
     if (std::holds_alternative<BorrowedData>(storage_)) {
         output += to_string();
+        return;
     }
 }
 
@@ -395,10 +398,6 @@ std::optional<Value> Value::member(std::string_view key) const {
 
     for (const auto& [entry_key, entry_value] : *object) {
         if (entry_key == key) {
-            if (entry_value.is_string() || entry_value.is_bool() || entry_value.is_int() || entry_value.is_double()
-                || entry_value.is_null()) {
-                return Value::borrowed_data(entry_value);
-            }
             return from_data(entry_value);
         }
     }

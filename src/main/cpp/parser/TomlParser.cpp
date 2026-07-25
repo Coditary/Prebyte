@@ -2,14 +2,42 @@
 
 #include "support/TextUtil.h"
 
+#include <cctype>
 #include <fstream>
 #include <iterator>
-#include <regex>
 #include <sstream>
 
 namespace prebyte {
 
 namespace {
+
+bool is_integer_token(std::string_view value) {
+    if (value.empty()) {
+        return false;
+    }
+    std::size_t index = 0;
+    if (value[index] == '-') {
+        ++index;
+    }
+    if (index >= value.size()) {
+        return false;
+    }
+    for (; index < value.size(); ++index) {
+        if (std::isdigit(static_cast<unsigned char>(value[index])) == 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool is_double_token(std::string_view value) {
+    const std::size_t dot = value.find('.');
+    if (dot == std::string_view::npos || dot == 0 || dot + 1 >= value.size()) {
+        return false;
+    }
+    return is_integer_token(value.substr(0, dot))
+        && is_integer_token(value.substr(dot + 1));
+}
 
 Data parse_toml_value(const std::string& raw) {
     const std::string value = text::trim(raw);
@@ -34,12 +62,10 @@ Data parse_toml_value(const std::string& raw) {
         return Data(std::move(array));
     }
 
-    static const std::regex int_regex(R"(^-?\d+$)");
-    static const std::regex double_regex(R"(^-?\d+\.\d+$)");
-    if (std::regex_match(value, int_regex)) {
+    if (is_integer_token(value)) {
         return Data(std::stoi(value));
     }
-    if (std::regex_match(value, double_regex)) {
+    if (is_double_token(value)) {
         return Data(std::stod(value));
     }
     return Data(value);
