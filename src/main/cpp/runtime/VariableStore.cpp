@@ -9,6 +9,7 @@ void VariableStore::set(const std::string& name, std::string value) {
 }
 
 void VariableStore::set_value(const std::string& name, Value value) {
+    ++revision_;
     const std::string lowered = text::to_lower(name);
     exact_values_[name] = value;
     lower_values_[lowered] = std::move(value);

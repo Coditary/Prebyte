@@ -1,7 +1,7 @@
 #include "runtime/Renderer.h"
 
-#include "runtime/CompiledTemplateCompiler.h"
 #include "runtime/CompiledTemplateCache.h"
+#include "runtime/CompiledTemplateCompiler.h"
 #include "runtime/FileMetadataCache.h"
 #include "runtime/CompiledTemplateSerializer.h"
 #include "runtime/CompiledTemplateWriter.h"
@@ -44,8 +44,19 @@ void Renderer::render_source_to(std::string_view source, const EffectiveSettings
         active_source = prepared;
     }
 
+    if (!file_backed_source) {
+        if (const CompiledProgram* cached = CompiledTemplateCache::instance().find_inline(active_source, settings)) {
+            render_program_to(*cached, settings, current_file, session, sink);
+            return;
+        }
+    }
+
     CompiledTemplateCompiler compiler;
-    const CompiledProgram program = compiler.compile_source(active_source, current_file, current_file, settings);
+    CompiledProgram program = compiler.compile_source(active_source, current_file, current_file, settings);
+    const CompiledProgram* render_program = &program;
+    if (!file_backed_source) {
+        render_program = CompiledTemplateCache::instance().store_inline(active_source, std::move(program), settings);
+    }
 
     CompiledTemplateSerializer serializer;
     if (file_backed_source) {
@@ -53,7 +64,7 @@ void Renderer::render_source_to(std::string_view source, const EffectiveSettings
         CompiledTemplateWriter::instance().enqueue(serializer.compiled_path_for_source(current_file),
                                                    serializer.serialize(program));
     }
-    render_program_to(program, settings, current_file, session, sink);
+    render_program_to(*render_program, settings, current_file, session, sink);
 }
 
 void Renderer::render_program_to(const CompiledProgram& program, const EffectiveSettings& settings,
@@ -65,7 +76,8 @@ void Renderer::render_program_to(const CompiledProgram& program, const Effective
 std::string Renderer::render_program(const CompiledProgram& program, const EffectiveSettings& settings,
                                      const std::filesystem::path& current_file, RenderSession& session) const {
     std::string output;
-    output.reserve(program.data_blob.size());
+    const std::size_t reserve_hint = program.output_size_hint > 0 ? program.output_size_hint : program.data_blob.size();
+    output.reserve(reserve_hint);
     render_program_to(program, settings, current_file, session, [&output](std::string_view chunk) {
         output.append(chunk.data(), chunk.size());
     });

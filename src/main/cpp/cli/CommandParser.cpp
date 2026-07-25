@@ -148,6 +148,21 @@ Command CommandParser::parse(const std::vector<std::string>& args) const {
             continue;
         }
 
+        if (arg == "-b" || arg == "--batch") {
+            if (index + 1 < args.size() && !text::starts_with(args[index + 1], "-")) {
+                if (command.batch_from_stdin) {
+                    throw DiagnosticError(make_cli_error("Batch input cannot be specified from both a file and stdin"));
+                }
+                command.batch_path = args[++index];
+            } else {
+                if (command.batch_path.has_value()) {
+                    throw DiagnosticError(make_cli_error("Batch input cannot be specified from both a file and stdin"));
+                }
+                command.batch_from_stdin = true;
+            }
+            continue;
+        }
+
         if (arg == "--benchmark") {
             command.benchmark = true;
             continue;
@@ -171,6 +186,10 @@ Command CommandParser::parse(const std::vector<std::string>& args) const {
         }
 
         throw DiagnosticError(make_cli_error("Unknown argument: " + arg));
+    }
+
+    if (command.batch_from_stdin && !command.input_path.has_value()) {
+        throw DiagnosticError(make_cli_error("Batch input from stdin requires a template file argument"));
     }
 
     return command;

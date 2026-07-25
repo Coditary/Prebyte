@@ -393,11 +393,16 @@ std::optional<Value> Value::member(std::string_view key) const {
         return std::nullopt;
     }
 
-    auto it = object->find(std::string(key));
-    if (it == object->end()) {
-        return std::nullopt;
+    for (const auto& [entry_key, entry_value] : *object) {
+        if (entry_key == key) {
+            if (entry_value.is_string() || entry_value.is_bool() || entry_value.is_int() || entry_value.is_double()
+                || entry_value.is_null()) {
+                return Value::borrowed_data(entry_value);
+            }
+            return from_data(entry_value);
+        }
     }
-    return from_data(it->second);
+    return std::nullopt;
 }
 
 std::optional<Value> Value::index(std::size_t index) const {

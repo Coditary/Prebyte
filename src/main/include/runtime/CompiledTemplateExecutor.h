@@ -41,6 +41,9 @@ private:
     Value evaluate_expression(const CompiledProgram& program, InstructionRange range,
                               const EffectiveSettings& settings, const std::filesystem::path& current_file,
                               RenderSession& session) const;
+    bool evaluate_condition_bool(const CompiledProgram& program, InstructionRange range,
+                                 const EffectiveSettings& settings, const std::filesystem::path& current_file,
+                                 RenderSession& session) const;
     std::string_view data_view(const CompiledProgram& program, std::uint32_t offset, std::uint32_t length) const;
     SourceSpan make_span(const std::filesystem::path& current_file, std::uint32_t line, std::uint32_t column) const;
 

@@ -2,6 +2,7 @@
 
 CMAKE_PRESET ?= dev
 CMAKE_BUILD_DIR := build-cmake/dev
+CMAKE_CACHE := $(CMAKE_BUILD_DIR)/CMakeCache.txt
 COMPARE_DIR := tools/benchmark_compare
 PREBYTE_VERSION ?= $(shell python3 -c 'import pathlib,re; text = pathlib.Path("CMakeLists.txt").read_text(encoding="utf-8"); match = re.search(r"project\([^\n]*VERSION\s+([^\s)]+)", text); print(match.group(1) if match else "0.0.0")')
 REQPACK_OUTPUT_DIR ?= dist
@@ -9,6 +10,13 @@ REQPACK_OUTPUT_DIR ?= dist
 all: start
 
 configure:
+	@if [ -f "$(CMAKE_CACHE)" ]; then \
+		cached_source=$$(sed -n 's/^CMAKE_HOME_DIRECTORY:INTERNAL=//p' "$(CMAKE_CACHE)" | head -1); \
+		if [ -n "$$cached_source" ] && [ "$$cached_source" != "$(CURDIR)" ]; then \
+			printf 'Removing stale CMake cache (%s -> %s)\n' "$$cached_source" "$(CURDIR)"; \
+			rm -rf "$(CMAKE_BUILD_DIR)"; \
+		fi; \
+	fi
 	cmake --preset $(CMAKE_PRESET)
 
 start: configure

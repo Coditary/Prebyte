@@ -30,7 +30,9 @@ struct Command {
     std::vector<std::string> ignore_names;
     std::vector<std::string> profile_names;
     std::optional<std::filesystem::path> settings_path;
+    std::optional<std::filesystem::path> batch_path;
     std::optional<std::string> explain_topic;
+    bool batch_from_stdin = false;
     bool benchmark = false;
     bool debug = false;
 };

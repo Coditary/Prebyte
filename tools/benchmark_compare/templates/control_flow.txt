@@ -1,0 +1,1 @@
+{% for member in members %}{% if member.admin %}*{% else %}-{% endif %}{{ member.name }};{% else %}{% if is_archived %}archived{% else %}empty{% endif %}{% endfor %}

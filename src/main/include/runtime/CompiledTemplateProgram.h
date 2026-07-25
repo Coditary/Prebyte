@@ -10,7 +10,7 @@
 namespace prebyte {
 
 // Bump when serialized instruction/opcode layout changes.
-constexpr std::uint32_t kCompiledTemplateFormatVersion = 6;
+constexpr std::uint32_t kCompiledTemplateFormatVersion = 8;
 
 enum class TemplateOpcode : std::uint32_t {
     EmitText,
@@ -114,6 +114,7 @@ struct CompiledProgram {
     std::string data_blob;
     std::vector<CompiledDependency> dependencies;
     std::vector<CompiledFunction> functions;
+    std::uint32_t output_size_hint = 0;
 };
 
 }

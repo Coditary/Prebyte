@@ -17,6 +17,7 @@ public:
 
     void set(const std::string& name, std::string value);
     void set_value(const std::string& name, Value value);
+    std::uint64_t revision() const { return revision_; }
     template <typename MapType>
     void set_all(const MapType& variables) {
         for (const auto& [name, value] : variables) {
@@ -35,6 +36,7 @@ public:
 private:
     Map exact_values_;
     Map lower_values_;
+    std::uint64_t revision_ = 0;
 };
 
 }

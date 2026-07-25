@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -10,6 +11,8 @@
 
 namespace prebyte {
 
+// Thread-safe for concurrent process()/process_file() calls on the same instance.
+// Configuration mutators serialize with renders on the same instance.
 class Prebyte {
 public:
     Prebyte();
@@ -43,6 +46,7 @@ private:
     std::vector<std::string> profile_names_;
     std::vector<std::string> ignore_names_;
     std::vector<std::string> rule_args_;
+    mutable std::mutex mutex_;
     mutable std::unique_ptr<PreparedState> prepared_;
 };
 

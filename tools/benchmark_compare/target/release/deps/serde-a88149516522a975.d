@@ -1,0 +1,14 @@
+/home/Leodoras/Dev/Coditary/Prebyte/tools/benchmark_compare/target/release/deps/serde-a88149516522a975.d: /home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/Leodoras/Dev/Coditary/Prebyte/tools/benchmark_compare/target/release/build/serde-27652e170ddfe03f/out/private.rs
+
+/home/Leodoras/Dev/Coditary/Prebyte/tools/benchmark_compare/target/release/deps/libserde-a88149516522a975.rlib: /home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/Leodoras/Dev/Coditary/Prebyte/tools/benchmark_compare/target/release/build/serde-27652e170ddfe03f/out/private.rs
+
+/home/Leodoras/Dev/Coditary/Prebyte/tools/benchmark_compare/target/release/deps/libserde-a88149516522a975.rmeta: /home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/Leodoras/Dev/Coditary/Prebyte/tools/benchmark_compare/target/release/build/serde-27652e170ddfe03f/out/private.rs
+
+/home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs:
+/home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs:
+/home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs:
+/home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs:
+/home/Leodoras/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs:
+/home/Leodoras/Dev/Coditary/Prebyte/tools/benchmark_compare/target/release/build/serde-27652e170ddfe03f/out/private.rs:
+
+# env-dep:OUT_DIR=/home/Leodoras/Dev/Coditary/Prebyte/tools/benchmark_compare/target/release/build/serde-27652e170ddfe03f/out

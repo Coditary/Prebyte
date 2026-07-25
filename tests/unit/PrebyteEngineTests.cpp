@@ -6,8 +6,10 @@
 #include "runtime/CompiledTemplateSerializer.h"
 #include "support/Diagnostic.h"
 
+#include <atomic>
 #include <filesystem>
 #include <fstream>
+#include <thread>
 
 namespace {
 
@@ -190,4 +192,36 @@ TEST_CASE(PrebyteEngine_output_encoding_and_error_on_false_input_settings_apply_
     REQUIRE_EQ(static_cast<unsigned char>(bytes[1]), 0xFEu);
     REQUIRE_EQ(static_cast<unsigned char>(bytes[2]), 0x48u);
     REQUIRE_EQ(static_cast<unsigned char>(bytes[3]), 0x00u);
+}
+
+TEST_CASE(PrebyteEngine_concurrent_process_is_thread_safe) {
+    prebyte::Prebyte engine;
+    engine.set_variable("name", "Ada");
+
+    constexpr int thread_count = 8;
+    constexpr int renders_per_thread = 200;
+    std::vector<std::thread> threads;
+    threads.reserve(thread_count);
+    std::atomic<int> failures{0};
+
+    for (int thread_index = 0; thread_index < thread_count; ++thread_index) {
+        threads.emplace_back([&engine, &failures]() {
+            for (int render_index = 0; render_index < renders_per_thread; ++render_index) {
+                try {
+                    const std::string output = engine.process("Hello {{ name }}");
+                    if (output != "Hello Ada") {
+                        failures.fetch_add(1, std::memory_order_relaxed);
+                    }
+                } catch (const std::exception&) {
+                    failures.fetch_add(1, std::memory_order_relaxed);
+                }
+            }
+        });
+    }
+
+    for (std::thread& thread : threads) {
+        thread.join();
+    }
+
+    REQUIRE_EQ(failures.load(), 0);
 }

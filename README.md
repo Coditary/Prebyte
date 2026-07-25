@@ -101,15 +101,43 @@ make benchmark
 `make benchmark` runs:
 
 1. internal Prebyte benchmark history update in `tests/benchmarks/history.md`
-2. Prebyte vs Go comparison from `tools/benchmark_compare/`
+2. Prebyte vs Go `text/template` and Rust Askama comparison from `tools/benchmark_compare/`
 
-Cross-engine comparison prints three modes:
+Cross-engine comparison is a **manual local tool** (not run in CI). Case names and iteration counts live in `tools/benchmark_compare/manifest.json`; reports append to `tools/benchmark_compare/history.md`.
 
-1. `cold`: fresh engine and parse path on each render
+See `tools/benchmark_compare/README.md` for layout and mode definitions.
+
+### Render benchmarks
+
+Cross-engine comparison prints six mode groups:
+
+1. `cold`: fresh engine and parse path on each render (Askama: fresh template context per render; templates compile at build time)
 2. `warm-execute`: parse and prepare once, then execute again without final output memoization
 3. `warm-memoized`: repeat same render after final output memoization is primed
+4. `mt-cold`: same as `cold`, but iterations are split across available CPU threads
+5. `mt-warm-execute`: same as `warm-execute`, but multithreaded
+6. `mt-warm-memoized`: same as `warm-memoized`, but multithreaded
 
-Benchmark history is stored in `tests/benchmarks/history.md`.
+Cases: `simple-variable`, `conditional`, `include-if`, `control-flow`.
+
+### Batch benchmarks
+
+Eight variable sets rendered from one template (`cases/batch/template.txt` + `data.json`).
+
+| Mode | Prebyte | Go / Askama |
+| --- | --- | --- |
+| `batch-warm` | template + JSON parsed once, entries re-rendered | n/a |
+| `batch-cold` | full `BatchProcessor` path each iteration | n/a |
+| `sequential-warm` | warm state, 8 single renders per iteration | 8 warm renders per iteration |
+| `sequential-cold` | 8 cold renders per iteration | 8 cold renders per iteration |
+
+Results are reported as microseconds per entry.
+
+Prebyte supports multithreaded rendering: `Engine::render()` is safe across threads on one instance, and `Prebyte::process()` serializes concurrent calls on the same instance.
+
+The Askama benchmark requires Rust/Cargo (`cargo build` in `tools/benchmark_compare/`).
+
+Benchmark history: `tests/benchmarks/history.md` (internal), `tools/benchmark_compare/history.md` (cross-engine).
 
 ## CLI
 

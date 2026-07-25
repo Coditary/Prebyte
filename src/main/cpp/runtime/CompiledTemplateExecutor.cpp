@@ -3,6 +3,7 @@
 #include "config/RuleResolver.h"
 #include "runtime/CompiledTemplateCompiler.h"
 #include "runtime/CompiledTemplateCache.h"
+#include "runtime/CompiledProgramAnalysis.h"
 #include "runtime/FileMetadataCache.h"
 #include "runtime/CompiledTemplateSerializer.h"
 #include "runtime/CompiledTemplateWriter.h"
@@ -46,6 +47,19 @@ LoopMeta find_loop_meta(const CompiledProgram& program, std::size_t for_index) {
     return meta;
 }
 
+LoopMeta loop_meta_for(const CompiledProgram& program, std::size_t for_index) {
+    if (for_index + 1 < program.template_instructions.size()) {
+        const TemplateInstruction& scope_meta = program.template_instructions[for_index + 1];
+        if (scope_meta.opcode == TemplateOpcode::PushScope && scope_meta.arg1 != 0) {
+            LoopMeta meta;
+            meta.else_index = scope_meta.arg0;
+            meta.end_index = scope_meta.arg1;
+            return meta;
+        }
+    }
+    return find_loop_meta(program, for_index);
+}
+
 struct LoopBindingNames {
     std::string_view first;
     std::string_view second;
@@ -84,26 +98,48 @@ RenderSession::LoopFrame make_loop_frame(std::string_view first_name, Value firs
     return frame;
 }
 
+std::optional<Value> try_map_member(const Value::Object& object, std::string_view key) {
+    for (const auto& [entry_key, entry_value] : object) {
+        if (entry_key == key) {
+            return Value::borrowed_data(entry_value);
+        }
+    }
+    return std::nullopt;
+}
+
 std::optional<Value> try_evaluate_dotted_fast_path(const Value& base, std::string_view path) {
+    const std::size_t dot = path.find('.');
+    if (dot == std::string_view::npos) {
+        const Value::Object* object = base.try_as_object();
+        if (object == nullptr) {
+            return std::nullopt;
+        }
+        return try_map_member(*object, path);
+    }
+
     Value current = base;
     std::size_t segment_start = 0;
     while (segment_start < path.size()) {
-        const std::size_t dot = path.find('.', segment_start);
-        const std::string_view segment = dot == std::string_view::npos
+        const std::size_t next_dot = path.find('.', segment_start);
+        const std::string_view segment = next_dot == std::string_view::npos
             ? path.substr(segment_start)
-            : path.substr(segment_start, dot - segment_start);
+            : path.substr(segment_start, next_dot - segment_start);
         if (segment.empty()) {
             return std::nullopt;
         }
-        const auto member = current.member(segment);
+        const Value::Object* object = current.try_as_object();
+        if (object == nullptr) {
+            return std::nullopt;
+        }
+        std::optional<Value> member = try_map_member(*object, segment);
         if (!member.has_value()) {
             return std::nullopt;
         }
-        current = *member;
-        if (dot == std::string_view::npos) {
+        current = std::move(*member);
+        if (next_dot == std::string_view::npos) {
             return current;
         }
-        segment_start = dot + 1;
+        segment_start = next_dot + 1;
     }
     return current;
 }
@@ -115,11 +151,27 @@ std::optional<Value> try_fast_loop_lookup(std::string_view name, bool case_sensi
     }
 
     const std::string_view root = name.substr(0, dot);
+    const std::string_view path = name.substr(dot + 1);
+
+    if (!session.loop_frames.empty()) {
+        const RenderSession::LoopFrame& frame = session.loop_frames.back();
+        if (RenderSession::names_equal(frame.binding_name_0, root, case_sensitive)) {
+            if (const auto fast_value = try_evaluate_dotted_fast_path(frame.binding_value_0, path)) {
+                return fast_value;
+            }
+        }
+        if (frame.has_second_binding && RenderSession::names_equal(frame.binding_name_1, root, case_sensitive)) {
+            if (const auto fast_value = try_evaluate_dotted_fast_path(frame.binding_value_1, path)) {
+                return fast_value;
+            }
+        }
+    }
+
     const Value* scoped_value = session.lookup_scoped_value(root, case_sensitive);
     if (scoped_value == nullptr) {
         return std::nullopt;
     }
-    return try_evaluate_dotted_fast_path(*scoped_value, name.substr(dot + 1));
+    return try_evaluate_dotted_fast_path(*scoped_value, path);
 }
 
 Diagnostic make_exec_error(const std::string& message, const std::filesystem::path& path) {
@@ -244,7 +296,7 @@ bool try_execute_prepared_include(const CompiledProgram& parent_program, std::ui
     if (it == session.prepared_include_cache_ref->end()) {
         return false;
     }
-    const RenderSession::PreparedIncludeEntry& entry = it->second;
+    RenderSession::PreparedIncludeEntry& entry = it->second;
     if (entry.program == nullptr || entry.settings == nullptr || std::chrono::steady_clock::now() >= entry.valid_until) {
         session.prepared_include_cache_ref->erase(it);
         return false;
@@ -254,10 +306,31 @@ bool try_execute_prepared_include(const CompiledProgram& parent_program, std::ui
     }
     ensure_include_depth_limit(settings, entry.logical_path, session);
 
+    const std::uint64_t variables_revision = session.variables_view().revision();
+    if (entry.cached_output.has_value() && entry.cached_variables_revision == variables_revision) {
+        emit_chunk(*entry.cached_output, settings, entry.logical_path, session, sink, true);
+        return true;
+    }
+
     session.push_include(entry.logical_path);
     session.push_local_scope();
     try {
-        executor.execute(*entry.program, *entry.settings, entry.logical_path, session, sink);
+        if (can_cache_program_output(*entry.program, *entry.settings)) {
+            std::string output;
+            const std::size_t reserve_hint = entry.program->output_size_hint > 0
+                ? entry.program->output_size_hint
+                : entry.program->data_blob.size();
+            output.reserve(reserve_hint);
+            const auto capture_sink = [&output](std::string_view chunk) {
+                output.append(chunk.data(), chunk.size());
+            };
+            executor.execute(*entry.program, *entry.settings, entry.logical_path, session, capture_sink);
+            entry.cached_output = std::move(output);
+            entry.cached_variables_revision = variables_revision;
+            emit_chunk(*entry.cached_output, settings, entry.logical_path, session, sink, true);
+        } else {
+            executor.execute(*entry.program, *entry.settings, entry.logical_path, session, sink);
+        }
     } catch (...) {
         session.pop_local_scope();
         session.pop_include();
@@ -440,7 +513,7 @@ void CompiledTemplateExecutor::execute_range(const CompiledProgram& program, std
             break;
         }
         case TemplateOpcode::ForLoop: {
-            const LoopMeta meta = find_loop_meta(program, instruction);
+            const LoopMeta meta = loop_meta_for(program, instruction);
             if (meta.end_index == std::numeric_limits<std::size_t>::max()) {
                 throw DiagnosticError(make_exec_error("Malformed compiled for loop", current_file));
             }
@@ -553,8 +626,8 @@ void CompiledTemplateExecutor::execute_range(const CompiledProgram& program, std
         case TemplateOpcode::JumpIfFalse:
             {
                 const InstructionRange range{op.data_offset, op.data_length};
-                const Value value = evaluate_expression(program, range, settings, current_file, session);
-                if (!value.to_bool()) {
+                const bool condition_true = evaluate_condition_bool(program, range, settings, current_file, session);
+                if (!condition_true) {
                     if (settings.error_on_false_input) {
                         const auto [line, column] = condition_location(program, range);
                         throw DiagnosticError(make_runtime_error("False input is not allowed in condition",
@@ -572,6 +645,43 @@ void CompiledTemplateExecutor::execute_range(const CompiledProgram& program, std
             return;
         }
     }
+}
+
+bool CompiledTemplateExecutor::evaluate_condition_bool(const CompiledProgram& program, InstructionRange range,
+                                                         const EffectiveSettings& settings,
+                                                         const std::filesystem::path& current_file,
+                                                         RenderSession& session) const {
+    ensure_render_time_budget(settings, current_file, session);
+    if (range.length == 1) {
+        const ExpressionInstruction& cond = program.expression_instructions[range.offset];
+        switch (cond.opcode) {
+        case ExpressionOpcode::LoadVar:
+        case ExpressionOpcode::LoadBuiltin: {
+            const std::string_view name = data_view(program, cond.data_offset, cond.data_length);
+            if (cond.opcode == ExpressionOpcode::LoadVar && name != "ARGS" && name.find('.') == std::string_view::npos
+                && can_fast_path_variable_lookup(settings, session)) {
+                if (const Value* value = session.lookup_scoped_value(name, true)) {
+                    return value->to_bool();
+                }
+                if (const Value* value = session.variables_view().get_value(name, true)) {
+                    return value->to_bool();
+                }
+                return false;
+            }
+            if (cond.opcode == ExpressionOpcode::LoadVar && name.find('.') != std::string_view::npos) {
+                if (const auto fast_value = try_fast_loop_lookup(name, settings.case_sensitive_variables, session)) {
+                    return fast_value->to_bool();
+                }
+            }
+            break;
+        }
+        case ExpressionOpcode::PushBool:
+            return cond.arg0 != 0;
+        default:
+            break;
+        }
+    }
+    return evaluate_expression(program, range, settings, current_file, session).to_bool();
 }
 
 Value CompiledTemplateExecutor::evaluate_expression(const CompiledProgram& program, InstructionRange range,

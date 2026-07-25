@@ -4,8 +4,10 @@
 #include "datatypes/Data.h"
 #include "support/Diagnostic.h"
 
+#include <atomic>
 #include <filesystem>
 #include <fstream>
+#include <thread>
 
 namespace {
 
@@ -175,4 +177,37 @@ TEST_CASE(Engine_render_honors_false_input_rule) {
     } catch (const prebyte::DiagnosticError& error) {
         REQUIRE_EQ(error.diagnostic().message, std::string("False input is not allowed in condition"));
     }
+}
+
+TEST_CASE(Engine_concurrent_render_is_thread_safe) {
+    prebyte::Engine engine;
+    const prebyte::CompiledTemplate tpl = engine.compile("Hello {{ name }}");
+
+    constexpr int thread_count = 8;
+    constexpr int renders_per_thread = 200;
+    std::vector<std::thread> threads;
+    threads.reserve(thread_count);
+    std::atomic<int> failures{0};
+
+    for (int thread_index = 0; thread_index < thread_count; ++thread_index) {
+        threads.emplace_back([&engine, &tpl, &failures]() {
+            prebyte::RenderContext ctx;
+            ctx.set("name", "Ada");
+            for (int render_index = 0; render_index < renders_per_thread; ++render_index) {
+                try {
+                    if (engine.render(tpl, ctx) != "Hello Ada") {
+                        failures.fetch_add(1, std::memory_order_relaxed);
+                    }
+                } catch (const std::exception&) {
+                    failures.fetch_add(1, std::memory_order_relaxed);
+                }
+            }
+        });
+    }
+
+    for (std::thread& thread : threads) {
+        thread.join();
+    }
+
+    REQUIRE_EQ(failures.load(), 0);
 }

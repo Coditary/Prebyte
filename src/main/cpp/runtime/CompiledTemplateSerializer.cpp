@@ -85,6 +85,7 @@ std::string CompiledTemplateSerializer::serialize(const CompiledProgram& program
     append_string(out, program.parse_options.variable_suffix);
     append_u32(out, program.parse_options.replace_tabs ? 1u : 0u);
     append_u32(out, program.parse_options.tab_size);
+    append_u32(out, program.output_size_hint);
     append_u32(out, static_cast<std::uint32_t>(program.template_instructions.size()));
     append_u32(out, static_cast<std::uint32_t>(program.expression_instructions.size()));
     append_u32(out, static_cast<std::uint32_t>(program.data_blob.size()));
@@ -150,6 +151,7 @@ CompiledProgram CompiledTemplateSerializer::deserialize(std::string_view bytes,
     program.parse_options.variable_suffix = read_string(bytes, offset);
     program.parse_options.replace_tabs = read_u32(bytes, offset) != 0;
     program.parse_options.tab_size = read_u32(bytes, offset);
+    program.output_size_hint = read_u32(bytes, offset);
     const std::uint32_t template_count = read_u32(bytes, offset);
     const std::uint32_t expression_count = read_u32(bytes, offset);
     const std::uint32_t data_size = read_u32(bytes, offset);

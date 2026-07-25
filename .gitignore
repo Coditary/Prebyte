@@ -5,3 +5,4 @@ Session.vim
 dist
 *.pbc
 *.gcov.json.gz
+tools/benchmark_compare/target/

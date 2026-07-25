@@ -108,6 +108,8 @@ struct RenderSession {
         const EffectiveSettings* settings = nullptr;
         std::filesystem::path logical_path;
         std::chrono::steady_clock::time_point valid_until = std::chrono::steady_clock::time_point::min();
+        std::optional<std::string> cached_output;
+        std::uint64_t cached_variables_revision = 0;
     };
 
     ResolvedConfiguration configuration;
@@ -137,6 +139,21 @@ struct RenderSession {
     RenderSession() {
         include_stack.reserve(kLinearIncludeDepth);
         function_scopes.emplace_back();
+    }
+
+    void reset_for_render() {
+        scope_stack.clear();
+        local_scopes.clear();
+        function_scopes.clear();
+        function_scopes.emplace_back();
+        loop_frames.clear();
+        include_stack.clear();
+        include_stack_set.clear();
+        builtin_snapshot.reset();
+        function_call_depth = 0;
+        output_bytes_emitted = 0;
+        lua_cache_hits = 0;
+        lua_cache_misses = 0;
     }
 
     const ResolvedConfiguration& configuration_view() const {

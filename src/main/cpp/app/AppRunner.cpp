@@ -1,5 +1,6 @@
 #include "app/AppRunner.h"
 
+#include "app/BatchProcessor.h"
 #include "config/ProfileMerger.h"
 #include "config/RuleResolver.h"
 #include "config/SettingsLoader.h"
@@ -83,6 +84,12 @@ std::string format_name_list(const Range& names) {
 }
 
 void AppRunner::run(const Command& command) const {
+    if (command.batch_path.has_value() || command.batch_from_stdin) {
+        BatchProcessor batch_processor;
+        batch_processor.run(command);
+        return;
+    }
+
     OutputWriter writer;
     if (command.mode == CommandMode::Render) {
         const RenderReport report = render_report(command);
@@ -96,6 +103,10 @@ void AppRunner::run(const Command& command) const {
 std::string AppRunner::execute(const Command& command) const {
     switch (command.mode) {
     case CommandMode::Render: {
+        if (command.batch_path.has_value() || command.batch_from_stdin) {
+            BatchProcessor batch_processor;
+            return batch_processor.execute(command);
+        }
         const RenderReport report = render_report(command);
         if (command.benchmark) {
             return report.output + format_benchmark(report);
@@ -276,10 +287,12 @@ std::string AppRunner::help() const {
             "  -s, --settings <file>\n"
             "  -i, --ignore <name>\n"
             "  -p, --profile <name>\n"
+            "  -b, --batch [<file>]\n"
             "  --benchmark\n"
             "  -X, --debug\n"
             "  -- [args...] pass render args for stdin mode\n"
             "  list rules|vars|profiles|ignore|ignores [options]\n"
+            "Batch: -b/--batch reads JSON variable sets from file or stdin. Stdin batch requires a template file.\n"
             "Render args: extra positional values after input, or after -- for stdin, available as ARGS[index].\n"
             "Include roots: current file, CLI -I, settings include_paths, legacy include_path, " << default_shared_include_root_hint() << ". First matching root wins.\n"
             "Output encoding: utf-8 or utf-16 for file output only (-o/--output).\n"

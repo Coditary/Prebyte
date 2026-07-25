@@ -7,10 +7,13 @@
 #include "io/InputReader.h"
 #include "io/OutputWriter.h"
 #include "runtime/CompiledTemplateCompiler.h"
+#include "runtime/CompiledTemplateCache.h"
 #include "runtime/FileMetadataCache.h"
 #include "runtime/CompiledTemplateSerializer.h"
+#include "runtime/CompiledProgramAnalysis.h"
 #include "runtime/EngineRuntime.h"
 
+#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -41,38 +44,6 @@ VariableContext resolve_engine_variables(const std::vector<std::string>& define_
                                          const ResolvedConfiguration& configuration) {
     VariableDefinitionParser parser;
     return parser.parse(define_args, configuration.variables, configuration.ignore_names);
-}
-
-bool program_has_dynamic_ops(const CompiledProgram& program) {
-    for (const CompiledFunction& function : program.functions) {
-        if (function.kind == CompiledFunction::Kind::Lua) {
-            return true;
-        }
-    }
-
-    for (const TemplateInstruction& instruction : program.template_instructions) {
-        if (instruction.opcode == TemplateOpcode::EmitLuaExpr || instruction.opcode == TemplateOpcode::EmitLuaBlock) {
-            return true;
-        }
-    }
-
-    const std::string_view data(program.data_blob);
-    for (const ExpressionInstruction& instruction : program.expression_instructions) {
-        if (instruction.opcode == ExpressionOpcode::EvalLua || instruction.opcode == ExpressionOpcode::LoadArg) {
-            return true;
-        }
-        if (instruction.opcode == ExpressionOpcode::LoadBuiltin) {
-            const std::string_view name = data.substr(instruction.data_offset, instruction.data_length);
-            if (name == "__TIME__" || name == "__DATE__" || name == "__TIMESTAMP__"
-                || name == "__YEAR__" || name == "__MONTH__" || name == "__DAY__"
-                || name == "__UNIX_EPOCH__" || name == "__USER__" || name == "__HOST__"
-                || name == "__WORKING_DIR__" || name == "__UUID__" || name == "__RANDOM__") {
-                return true;
-            }
-        }
-    }
-
-    return false;
 }
 
 }
@@ -106,12 +77,13 @@ struct Prebyte::PreparedState {
     }
 
     const CompiledProgram& inline_program_for(const std::string& source, const EffectiveSettings& settings) {
-        auto [it, inserted] = inline_program_cache.try_emplace(source);
-        if (inserted) {
-            CompiledTemplateCompiler compiler;
-            it->second = compiler.compile_source(source, {}, {}, settings);
+        if (const CompiledProgram* cached = CompiledTemplateCache::instance().find_inline(source, settings)) {
+            return *cached;
         }
-        return it->second;
+        CompiledTemplateCompiler compiler;
+        const CompiledProgram* stored = CompiledTemplateCache::instance().store_inline(
+            source, compiler.compile_source(source, {}, {}, settings), settings);
+        return *stored;
     }
 
     const CompiledProgram* compiled_for(const std::filesystem::path& source_path,
@@ -204,6 +176,97 @@ struct Prebyte::PreparedState {
         return true;
     }
 
+    void prepare_render_session() {
+        render_session.reset_for_render();
+        render_session.configuration_ref = &configuration;
+        render_session.variables_ref = &variables;
+        render_session.args_ref = &render_args;
+        render_session.ignore_names_ref = &ignore_names;
+        render_session.effective_settings_cache_ref = &effective_settings_cache;
+        render_session.prepared_include_cache_ref = &prepared_include_cache;
+        render_session.start_time = std::chrono::steady_clock::now();
+    }
+
+    void invalidate_render_outputs() {
+        inline_output_cache.clear();
+        file_output_cache.clear();
+        file_output_cache_raw.clear();
+        inline_output_seen.clear();
+        file_output_seen_raw.clear();
+        for (auto& [key, entry] : prepared_include_cache) {
+            static_cast<void>(key);
+            entry.cached_output.reset();
+            entry.cached_variables_revision = 0;
+        }
+    }
+
+    void apply_define_arg(const std::string& define_arg) {
+        VariableDefinitionParser parser;
+        const VariableContext variable_context = parser.parse({define_arg}, configuration.variables, ignore_names);
+        variables.set_all(variable_context.variables);
+        variables.set_all(variable_context.structured_variables);
+        invalidate_render_outputs();
+    }
+
+    std::string render_inline(const std::string& input) {
+        const EffectiveSettings& settings = settings_for({});
+        if (const std::string* cached = cached_inline_output(input)) {
+            return *cached;
+        }
+        const bool should_cache_output = !inline_output_seen.insert(input).second;
+
+        prepare_render_session();
+        const CompiledProgram& program = inline_program_for(input, settings);
+        std::string output = runtime.renderer.render_program(program, settings, {}, render_session);
+        if (should_cache_output && memoizable(program, settings)) {
+            store_inline_output(input, output);
+        }
+        return output;
+    }
+
+    std::string render_file(const std::string& file_path) {
+        if (const std::string* cached = cached_file_output_raw(file_path)) {
+            return *cached;
+        }
+        const bool should_cache_output = !file_output_seen_raw.insert(file_path).second;
+        const std::filesystem::path path(file_path);
+        if (const std::string* cached = cached_file_output(path)) {
+            return *cached;
+        }
+
+        const EffectiveSettings& effective_settings = settings_for(path);
+
+        prepare_render_session();
+
+        CompiledTemplateSerializer serializer;
+        if (path.extension() == ".pbc") {
+            InputReader reader;
+            const InputBuffer input = reader.read(path);
+            const CompiledProgram program = serializer.deserialize(input.view(), path);
+            return runtime.renderer.render_program(program, effective_settings, program.logical_path, render_session);
+        }
+
+        if (const CompiledProgram* compiled = compiled_for(path, effective_settings, serializer)) {
+            std::string output = runtime.renderer.render_program(*compiled, effective_settings, compiled->logical_path, render_session);
+            if (should_cache_output && memoizable(*compiled, effective_settings)) {
+                store_file_output(path, output);
+                store_file_output_raw(file_path, output);
+            }
+            return output;
+        }
+
+        InputReader reader;
+        const InputBuffer input = reader.read(path);
+        std::string output = runtime.renderer.render_source(input.view(), effective_settings, path, render_session);
+        if (const CompiledProgram* compiled = compiled_for(path, effective_settings, serializer)) {
+            if (should_cache_output && memoizable(*compiled, effective_settings)) {
+                store_file_output(path, output);
+                store_file_output_raw(file_path, output);
+            }
+        }
+        return output;
+    }
+
     ResolvedConfiguration configuration;
     VariableStore variables;
     const std::vector<std::string>& render_args;
@@ -211,7 +274,6 @@ struct Prebyte::PreparedState {
     EngineRuntime runtime;
     std::map<std::filesystem::path, EffectiveSettings> effective_settings_cache;
     std::map<std::filesystem::path, CachedProgramRef> compiled_program_cache;
-    std::map<std::string, CompiledProgram, std::less<>> inline_program_cache;
     std::map<std::string, CachedOutput, std::less<>> inline_output_cache;
     std::map<std::filesystem::path, CachedOutput> file_output_cache;
     std::map<std::string, CachedOutput, std::less<>> file_output_cache_raw;
@@ -219,6 +281,7 @@ struct Prebyte::PreparedState {
     std::unordered_set<std::string> file_output_seen_raw;
     std::unordered_map<RenderSession::PreparedIncludeKey, RenderSession::PreparedIncludeEntry,
                        RenderSession::PreparedIncludeKeyHash> prepared_include_cache;
+    RenderSession render_session;
 };
 
 Prebyte::Prebyte() = default;
@@ -232,127 +295,75 @@ Prebyte::Prebyte(std::string settings_file) {
 Prebyte::~Prebyte() = default;
 
 void Prebyte::set_variable(const std::string& name, const std::string& value) {
-    invalidate();
+    std::lock_guard lock(mutex_);
     define_args_.push_back(name + '=' + value);
+    if (prepared_) {
+        prepared_->apply_define_arg(name + '=' + value);
+    }
 }
 
 void Prebyte::set_variable(const std::string& name) {
-    invalidate();
+    std::lock_guard lock(mutex_);
     define_args_.push_back(name + '=');
+    if (prepared_) {
+        prepared_->apply_define_arg(name + '=');
+    }
 }
 
 void Prebyte::add_argument(const std::string& value) {
+    std::lock_guard lock(mutex_);
     invalidate();
     render_args_.push_back(value);
 }
 
 void Prebyte::add_include_path(const std::string& path) {
+    std::lock_guard lock(mutex_);
     invalidate();
     include_paths_.push_back(path);
 }
 
 void Prebyte::set_profile(const std::string& profile_name) {
+    std::lock_guard lock(mutex_);
     invalidate();
     profile_names_.push_back(profile_name);
 }
 
 void Prebyte::set_ignore(const std::string& ignore_item) {
+    std::lock_guard lock(mutex_);
     invalidate();
     ignore_names_.push_back(ignore_item);
 }
 
 void Prebyte::set_rule(const std::string& rule_name, const std::string& rule_value) {
+    std::lock_guard lock(mutex_);
     invalidate();
     rule_args_.push_back(rule_name + '=' + rule_value);
 }
 
 std::string Prebyte::process(const std::string& input) const {
-    PreparedState& state = prepared_state();
-    const EffectiveSettings& settings = state.settings_for({});
-    if (const std::string* cached = state.cached_inline_output(input)) {
-        return *cached;
-    }
-    const bool should_cache_output = !state.inline_output_seen.insert(input).second;
-
-    RenderSession session;
-    session.configuration_ref = &state.configuration;
-    session.variables_ref = &state.variables;
-    session.args_ref = &render_args_;
-    session.ignore_names_ref = &state.ignore_names;
-    session.effective_settings_cache_ref = &state.effective_settings_cache;
-    session.prepared_include_cache_ref = &state.prepared_include_cache;
-    session.start_time = std::chrono::steady_clock::now();
-    const CompiledProgram& program = state.inline_program_for(input, settings);
-    std::string output = state.runtime.renderer.render_program(program, settings, {}, session);
-    if (should_cache_output && state.memoizable(program, settings)) {
-        state.store_inline_output(input, output);
-    }
-    return output;
+    std::lock_guard lock(mutex_);
+    return prepared_state().render_inline(input);
 }
 
 std::string Prebyte::process_file(const std::string& file_path) const {
-    PreparedState& state = prepared_state();
-    if (const std::string* cached = state.cached_file_output_raw(file_path)) {
-        return *cached;
-    }
-    const bool should_cache_output = !state.file_output_seen_raw.insert(file_path).second;
-    const std::filesystem::path path(file_path);
-    if (const std::string* cached = state.cached_file_output(path)) {
-        return *cached;
-    }
-
-    const EffectiveSettings& effective_settings = state.settings_for(path);
-
-    RenderSession session;
-    session.configuration_ref = &state.configuration;
-    session.variables_ref = &state.variables;
-    session.args_ref = &render_args_;
-    session.ignore_names_ref = &state.ignore_names;
-    session.effective_settings_cache_ref = &state.effective_settings_cache;
-    session.prepared_include_cache_ref = &state.prepared_include_cache;
-    session.start_time = std::chrono::steady_clock::now();
-
-    CompiledTemplateSerializer serializer;
-    if (path.extension() == ".pbc") {
-        InputReader reader;
-        const InputBuffer input = reader.read(path);
-        const CompiledProgram program = serializer.deserialize(input.view(), path);
-        return state.runtime.renderer.render_program(program, effective_settings, program.logical_path, session);
-    }
-
-    if (const CompiledProgram* compiled = state.compiled_for(path, effective_settings, serializer)) {
-        std::string output = state.runtime.renderer.render_program(*compiled, effective_settings, compiled->logical_path, session);
-        if (should_cache_output && state.memoizable(*compiled, effective_settings)) {
-            state.store_file_output(path, output);
-            state.store_file_output_raw(file_path, output);
-        }
-        return output;
-    }
-
-    InputReader reader;
-    const InputBuffer input = reader.read(path);
-    std::string output = state.runtime.renderer.render_source(input.view(), effective_settings, path, session);
-    if (const CompiledProgram* compiled = state.compiled_for(path, effective_settings, serializer)) {
-        if (should_cache_output && state.memoizable(*compiled, effective_settings)) {
-            state.store_file_output(path, output);
-            state.store_file_output_raw(file_path, output);
-        }
-    }
-    return output;
+    std::lock_guard lock(mutex_);
+    return prepared_state().render_file(file_path);
 }
 
 void Prebyte::process(const std::string& input, const std::string& output_path) const {
+    std::lock_guard lock(mutex_);
     PreparedState& state = prepared_state();
     const EffectiveSettings& settings = state.settings_for({});
     OutputWriter writer;
-    writer.write(process(input), output_path, settings.output_encoding);
+    writer.write(state.render_inline(input), output_path, settings.output_encoding);
 }
 
 void Prebyte::process_file(const std::string& file_path, const std::string& output_path) const {
+    std::lock_guard lock(mutex_);
     PreparedState& state = prepared_state();
     const EffectiveSettings& settings = state.settings_for(file_path);
     OutputWriter writer;
-    writer.write(process_file(file_path), output_path, settings.output_encoding);
+    writer.write(state.render_file(file_path), output_path, settings.output_encoding);
 }
 
 Command Prebyte::make_command() const {

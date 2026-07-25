@@ -1005,3 +1005,53 @@ TEST_CASE(AppRunner_render_functions_and_builtins) {
     REQUIRE(output.find("Hello Ada from ") == 0);
     REQUIRE(output.find("|Grace;Linus;|true|true") != std::string::npos);
 }
+
+TEST_CASE(AppRunner_batch_render_from_file_to_stdout) {
+    const std::filesystem::path root = test_temp_root("batch-file-stdout");
+    write_file(root / "template.txt", "Hello {{ name }}!\n");
+    write_file(root / "data.json", R"([{"name":"Ada"},{"name":"Grace"}])");
+
+    prebyte::Command command;
+    command.mode = prebyte::CommandMode::Render;
+    command.input_path = root / "template.txt";
+    command.batch_path = root / "data.json";
+
+    prebyte::AppRunner runner;
+    REQUIRE_EQ(runner.execute(command), std::string("Hello Ada!\nHello Grace!\n"));
+}
+
+TEST_CASE(AppRunner_batch_render_with_output_override) {
+    const std::filesystem::path root = test_temp_root("batch-output-override");
+    write_file(root / "template.txt", "{{ value }}");
+    write_file(root / "data.json", R"([{"$output":"custom.txt","value":"one"},{"value":"two"}])");
+
+    prebyte::Command command;
+    command.mode = prebyte::CommandMode::Render;
+    command.input_path = root / "template.txt";
+    command.batch_path = root / "data.json";
+    command.output_path = root / "out";
+
+    prebyte::AppRunner runner;
+    runner.run(command);
+
+    REQUIRE_EQ(std::string(prebyte::InputBuffer::from_file(root / "out" / "custom.txt").view()), std::string("one"));
+    REQUIRE_EQ(std::string(prebyte::InputBuffer::from_file(root / "out" / "1.txt").view()), std::string("two"));
+}
+
+TEST_CASE(AppRunner_batch_render_object_keys_as_output_names) {
+    const std::filesystem::path root = test_temp_root("batch-object-output-names");
+    write_file(root / "template.txt", "{{ value }}");
+    write_file(root / "data.json", R"({"first.txt":{"value":"one"},"second.txt":{"value":"two"}})");
+
+    prebyte::Command command;
+    command.mode = prebyte::CommandMode::Render;
+    command.input_path = root / "template.txt";
+    command.batch_path = root / "data.json";
+    command.output_path = root / "out";
+
+    prebyte::AppRunner runner;
+    runner.run(command);
+
+    REQUIRE_EQ(std::string(prebyte::InputBuffer::from_file(root / "out" / "first.txt").view()), std::string("one"));
+    REQUIRE_EQ(std::string(prebyte::InputBuffer::from_file(root / "out" / "second.txt").view()), std::string("two"));
+}

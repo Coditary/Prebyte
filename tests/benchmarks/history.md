@@ -154,3 +154,219 @@ Every benchmark run appends a new timestamped section. Compare sections to track
 | lua-repeated | 48 | -1 | +4 | 1 | 1 | 8 |
 | lua-condition | 53 | +4 | +11 | 0 | 1 | 3 |
 
+## 2026-05-13 16:51:17
+
+| Case | Time (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| simple-variable | 55 | baseline | +6 | 0 | 0 | 10 |
+| if-include | 29 | -26 | -2 | 0 | 0 | 31 |
+| profile-merge | 9 | -46 | +0 | 0 | 0 | 5 |
+| lua-inline | 85 | +30 | -3 | 0 | 1 | 4 |
+| lua-repeated | 43 | -12 | -5 | 1 | 1 | 8 |
+| lua-condition | 49 | -6 | -4 | 0 | 1 | 3 |
+
+## 2026-05-13 17:02:58
+
+| Case | Time (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| simple-variable | 57 | baseline | +2 | 0 | 0 | 10 |
+| if-include | 47 | -10 | +18 | 0 | 0 | 31 |
+| profile-merge | 15 | -42 | +6 | 0 | 0 | 5 |
+| lua-inline | 83 | +26 | -2 | 0 | 1 | 4 |
+| lua-repeated | 88 | +31 | +45 | 1 | 1 | 8 |
+| lua-condition | 52 | -5 | +3 | 0 | 1 | 3 |
+
+## 2026-05-14 13:49:48
+
+| Case | Time (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| simple-variable | 286 | baseline | +229 | 0 | 0 | 10 |
+| if-include | 411 | +125 | +364 | 0 | 0 | 31 |
+| profile-merge | 102 | -184 | +87 | 0 | 0 | 5 |
+| lua-inline | 229 | -57 | +146 | 0 | 1 | 4 |
+| lua-repeated | 586 | +300 | +498 | 1 | 1 | 8 |
+| lua-condition | 161 | -125 | +109 | 0 | 1 | 3 |
+
+## 2026-07-25 16:43:10
+
+| Case | Time (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| simple-variable | 243 | baseline | -43 | 0 | 0 | 10 |
+| if-include | 227 | -16 | -184 | 0 | 0 | 31 |
+| profile-merge | 91 | -152 | -11 | 0 | 0 | 5 |
+| lua-inline | 242 | -1 | +13 | 0 | 1 | 4 |
+| lua-repeated | 67 | -176 | -519 | 1 | 1 | 8 |
+| lua-condition | 139 | -104 | -22 | 0 | 1 | 3 |
+
+## 2026-07-25 17:25:03
+
+| Case | Time (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| simple-variable | 73 | baseline | -170 | 0 | 0 | 10 |
+| if-include | 44 | -29 | -183 | 0 | 0 | 31 |
+| profile-merge | 13 | -60 | -78 | 0 | 0 | 5 |
+| lua-inline | 126 | +53 | -116 | 0 | 1 | 4 |
+| lua-repeated | 81 | +8 | +14 | 1 | 1 | 8 |
+| lua-condition | 69 | -4 | -70 | 0 | 1 | 3 |
+
+## 2026-07-25 17:48:43
+
+| Case | Time (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| simple-variable | 54 | baseline | -19 | 0 | 0 | 10 |
+| if-include | 38 | -16 | -6 | 0 | 0 | 31 |
+| profile-merge | 10 | -44 | -3 | 0 | 0 | 5 |
+| lua-inline | 112 | +58 | -14 | 0 | 1 | 4 |
+| lua-repeated | 140 | +86 | +59 | 1 | 1 | 8 |
+| lua-condition | 65 | +11 | -4 | 0 | 1 | 3 |
+
+## 2026-07-25 18:17:54
+
+| Case | Time (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| simple-variable | 51 | baseline | -3 | 0 | 0 | 10 |
+| if-include | 33 | -18 | -5 | 0 | 0 | 31 |
+| profile-merge | 9 | -42 | -1 | 0 | 0 | 5 |
+| lua-inline | 104 | +53 | -8 | 0 | 1 | 4 |
+| lua-repeated | 65 | +14 | -75 | 1 | 1 | 8 |
+| lua-condition | 56 | +5 | -9 | 0 | 1 | 3 |
+
+## 2026-07-25 18:29:57
+
+| Case | Time (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| simple-variable | 54 | baseline | +3 | 0 | 0 | 10 |
+| if-include | 34 | -20 | +1 | 0 | 0 | 31 |
+| profile-merge | 10 | -44 | +1 | 0 | 0 | 5 |
+| lua-inline | 105 | +51 | +1 | 0 | 1 | 4 |
+| lua-repeated | 137 | +83 | +72 | 1 | 1 | 8 |
+| lua-condition | 61 | +7 | +5 | 0 | 1 | 3 |
+
+## 2026-07-25 18:39:04
+
+| Case | Time (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| simple-variable | 62 | baseline | +8 | 0 | 0 | 10 |
+| if-include | 38 | -24 | +4 | 0 | 0 | 31 |
+| profile-merge | 9 | -53 | -1 | 0 | 0 | 5 |
+| lua-inline | 109 | +47 | +4 | 0 | 1 | 4 |
+| lua-repeated | 56 | -6 | -81 | 1 | 1 | 8 |
+| lua-condition | 56 | -6 | -5 | 0 | 1 | 3 |
+
+## 2026-07-25 18:53:54
+
+| Case | Time (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| simple-variable | 50 | baseline | -12 | 0 | 0 | 10 |
+| if-include | 29 | -21 | -9 | 0 | 0 | 31 |
+| profile-merge | 9 | -41 | +0 | 0 | 0 | 5 |
+| lua-inline | 101 | +51 | -8 | 0 | 1 | 4 |
+| lua-repeated | 56 | +6 | +0 | 1 | 1 | 8 |
+| lua-condition | 56 | +6 | +0 | 0 | 1 | 3 |
+
+## 2026-07-25 18:59:09
+
+| Case | Time (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| simple-variable | 48 | baseline | -2 | 0 | 0 | 10 |
+| if-include | 32 | -16 | +3 | 0 | 0 | 31 |
+| profile-merge | 9 | -39 | +0 | 0 | 0 | 5 |
+| lua-inline | 99 | +51 | -2 | 0 | 1 | 4 |
+| lua-repeated | 59 | +11 | +3 | 1 | 1 | 8 |
+| lua-condition | 55 | +7 | -1 | 0 | 1 | 3 |
+
+## 2026-07-25 19:16:57
+
+### Single render (CLI)
+
+| Case | Time (us) | Per entry (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| simple-variable | 74 | - | baseline | +26 | 0 | 0 | 10 |
+| if-include | 43 | - | -31 | +11 | 0 | 0 | 31 |
+| profile-merge | 11 | - | -63 | +2 | 0 | 0 | 5 |
+| lua-inline | 123 | - | +49 | +24 | 0 | 1 | 4 |
+| lua-repeated | 70 | - | -4 | +11 | 1 | 1 | 8 |
+| lua-condition | 67 | - | -7 | +12 | 0 | 1 | 3 |
+
+### Batch (CLI, 8 entries)
+
+| Case | Time (us) | Per entry (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| batch-variable | 128 | 16 | +54 | new | 0 | 0 | 107 |
+
+## 2026-07-25 19:17:45
+
+### Single render (CLI)
+
+| Case | Time (us) | Per entry (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| simple-variable | 69 | - | baseline | -5 | 0 | 0 | 10 |
+| if-include | 41 | - | -28 | -2 | 0 | 0 | 31 |
+| profile-merge | 11 | - | -58 | +0 | 0 | 0 | 5 |
+| lua-inline | 122 | - | +53 | -1 | 0 | 1 | 4 |
+| lua-repeated | 71 | - | +2 | +1 | 1 | 1 | 8 |
+| lua-condition | 67 | - | -2 | +0 | 0 | 1 | 3 |
+
+### Batch (CLI, 8 entries)
+
+| Case | Time (us) | Per entry (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| batch-variable | 45 | 5 | -24 | -83 | 0 | 0 | 107 |
+
+## 2026-07-25 19:20:04
+
+### Single render (CLI)
+
+| Case | Time (us) | Per entry (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| simple-variable | 70 | - | baseline | +1 | 0 | 0 | 10 |
+| if-include | 41 | - | -29 | +0 | 0 | 0 | 31 |
+| profile-merge | 11 | - | -59 | +0 | 0 | 0 | 5 |
+| lua-inline | 124 | - | +54 | +2 | 0 | 1 | 4 |
+| lua-repeated | 117 | - | +47 | +46 | 1 | 1 | 8 |
+| lua-condition | 94 | - | +24 | +27 | 0 | 1 | 3 |
+
+### Batch (CLI, 8 entries)
+
+| Case | Time (us) | Per entry (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| batch-variable | 47 | 5 | -23 | +2 | 0 | 0 | 107 |
+
+## 2026-07-25 19:29:10
+
+### Single render (CLI)
+
+| Case | Time (us) | Per entry (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| simple-variable | 71 | - | baseline | +1 | 0 | 0 | 10 |
+| if-include | 40 | - | -31 | -1 | 0 | 0 | 31 |
+| profile-merge | 10 | - | -61 | -1 | 0 | 0 | 5 |
+| lua-inline | 123 | - | +52 | -1 | 0 | 1 | 4 |
+| lua-repeated | 70 | - | -1 | -47 | 1 | 1 | 8 |
+| lua-condition | 66 | - | -5 | -28 | 0 | 1 | 3 |
+
+### Batch (CLI, 8 entries)
+
+| Case | Time (us) | Per entry (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| batch-variable | 42 | 5 | -29 | -5 | 0 | 0 | 107 |
+
+## 2026-07-25 19:33:39
+
+### Single render (CLI)
+
+| Case | Time (us) | Per entry (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| simple-variable | 48 | - | baseline | -23 | 0 | 0 | 10 |
+| if-include | 30 | - | -18 | -10 | 0 | 0 | 31 |
+| profile-merge | 9 | - | -39 | -1 | 0 | 0 | 5 |
+| lua-inline | 99 | - | +51 | -24 | 0 | 1 | 4 |
+| lua-repeated | 57 | - | +9 | -13 | 1 | 1 | 8 |
+| lua-condition | 53 | - | +5 | -13 | 0 | 1 | 3 |
+
+### Batch (CLI, 8 entries)
+
+| Case | Time (us) | Per entry (us) | Delta vs baseline (us) | Delta vs prev (us) | Lua cache hits | Lua cache misses | Output bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| batch-variable | 98 | 12 | +50 | +56 | 0 | 0 | 107 |
+

@@ -55,6 +55,8 @@ private:
     std::shared_ptr<const Impl> impl_;
 };
 
+// Thread-safe for concurrent render()/render_to() calls on the same instance.
+// Each call uses its own render session; share one Engine across threads.
 class Engine {
 public:
     using ChunkSink = std::function<void(std::string_view)>;

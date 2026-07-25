@@ -1,0 +1,53 @@
+{
+  "_comment": "Single source of truth for benchmark cases, iterations, and mode groups. All harnesses read this file.",
+  "render": {
+    "description": "Single-template render micro-benchmarks compared across engines.",
+    "cases": [
+      {
+        "name": "simple-variable",
+        "label": "Simple variable",
+        "iterations": 20000
+      },
+      {
+        "name": "conditional",
+        "label": "Inline conditional",
+        "iterations": 20000
+      },
+      {
+        "name": "include-if",
+        "label": "Include + conditional",
+        "iterations": 5000
+      },
+      {
+        "name": "control-flow",
+        "label": "Nested control flow",
+        "iterations": 6000
+      }
+    ],
+    "modes": [
+      {"id": "cold", "label": "Cold", "multithreaded": false},
+      {"id": "warm-execute", "label": "Warm execute", "multithreaded": false},
+      {"id": "warm-memoized", "label": "Warm memoized", "multithreaded": false},
+      {"id": "mt-cold", "label": "MT cold", "multithreaded": true},
+      {"id": "mt-warm-execute", "label": "MT warm execute", "multithreaded": true},
+      {"id": "mt-warm-memoized", "label": "MT warm memoized", "multithreaded": true}
+    ]
+  },
+  "batch": {
+    "description": "Render multiple variable sets from one template. Prebyte uses BatchProcessor; other engines loop single renders.",
+    "entries": 8,
+    "cases": [
+      {
+        "name": "batch-variable",
+        "label": "8-entry variable batch",
+        "iterations": 2500
+      }
+    ],
+    "modes": [
+      {"id": "batch-warm", "label": "Batch warm", "prebyte_only": true},
+      {"id": "batch-cold", "label": "Batch cold", "prebyte_only": true},
+      {"id": "sequential-warm", "label": "Sequential warm", "prebyte_only": false},
+      {"id": "sequential-cold", "label": "Sequential cold", "prebyte_only": false}
+    ]
+  }
+}

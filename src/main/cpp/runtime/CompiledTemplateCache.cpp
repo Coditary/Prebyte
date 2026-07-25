@@ -2,6 +2,8 @@
 
 #include "runtime/FileMetadataCache.h"
 
+#include <mutex>
+
 namespace prebyte {
 
 namespace {
@@ -38,6 +40,7 @@ CompiledTemplateCache& CompiledTemplateCache::instance() {
 const CompiledProgram* CompiledTemplateCache::find(const std::filesystem::path& compiled_path,
                                                    const EffectiveSettings& settings) const {
     const CacheKey key = make_key(compiled_path, settings);
+    std::lock_guard lock(mutex_);
     auto it = cache_.find(key);
     if (it == cache_.end()) {
         return nullptr;
@@ -50,6 +53,7 @@ const CompiledProgram* CompiledTemplateCache::store_loaded(const std::filesystem
                                                            const EffectiveSettings& settings,
                                                            std::int64_t compiled_mtime) {
     const CacheKey key = make_key(compiled_path, settings);
+    std::lock_guard lock(mutex_);
     const auto [it, inserted] = cache_.insert_or_assign(key, CacheEntry{
         .program = program,
         .compiled_mtime = compiled_mtime,
@@ -64,6 +68,7 @@ const CompiledProgram* CompiledTemplateCache::store_in_memory(const std::filesys
                                                               const CompiledProgram& program,
                                                               const EffectiveSettings& settings) {
     const CacheKey key = make_key(compiled_path, settings);
+    std::lock_guard lock(mutex_);
     const auto [it, inserted] = cache_.insert_or_assign(key, CacheEntry{
         .program = program,
         .compiled_mtime = 0,
@@ -75,12 +80,14 @@ const CompiledProgram* CompiledTemplateCache::store_in_memory(const std::filesys
 }
 
 void CompiledTemplateCache::erase(const std::filesystem::path& compiled_path, const EffectiveSettings& settings) {
+    std::lock_guard lock(mutex_);
     cache_.erase(make_key(compiled_path, settings));
 }
 
 bool CompiledTemplateCache::recently_validated(const std::filesystem::path& compiled_path,
                                                const EffectiveSettings& settings) const {
     const CacheKey key = make_key(compiled_path, settings);
+    std::lock_guard lock(mutex_);
     auto it = cache_.find(key);
     if (it == cache_.end()) {
         return false;
@@ -91,6 +98,7 @@ bool CompiledTemplateCache::recently_validated(const std::filesystem::path& comp
 void CompiledTemplateCache::mark_validated(const std::filesystem::path& compiled_path,
                                            const EffectiveSettings& settings) {
     const CacheKey key = make_key(compiled_path, settings);
+    std::lock_guard lock(mutex_);
     auto it = cache_.find(key);
     if (it == cache_.end() || it->second.trust_in_memory) {
         return;
@@ -101,6 +109,7 @@ void CompiledTemplateCache::mark_validated(const std::filesystem::path& compiled
 std::int64_t CompiledTemplateCache::compiled_mtime(const std::filesystem::path& compiled_path,
                                                    const EffectiveSettings& settings) const {
     const CacheKey key = make_key(compiled_path, settings);
+    std::lock_guard lock(mutex_);
     auto it = cache_.find(key);
     if (it == cache_.end()) {
         return 0;
@@ -117,6 +126,42 @@ CompiledTemplateCache::CacheKey CompiledTemplateCache::make_key(const std::files
     key.replace_tabs = settings.replace_tabs;
     key.tab_size = settings.tab_size;
     return key;
+}
+
+CompiledTemplateCache::InlineCacheKey CompiledTemplateCache::make_inline_key(std::string_view source,
+                                                                               const EffectiveSettings& settings) const {
+    InlineCacheKey key;
+    key.source.assign(source);
+    key.variable_prefix = settings.variable_prefix;
+    key.variable_suffix = settings.variable_suffix;
+    key.replace_tabs = settings.replace_tabs;
+    key.tab_size = settings.tab_size;
+    return key;
+}
+
+const CompiledProgram* CompiledTemplateCache::find_inline(std::string_view source,
+                                                          const EffectiveSettings& settings) const {
+    const InlineCacheKey key = make_inline_key(source, settings);
+    std::lock_guard lock(mutex_);
+    auto it = inline_cache_.find(key);
+    if (it == inline_cache_.end()) {
+        return nullptr;
+    }
+    return &it->second.program;
+}
+
+const CompiledProgram* CompiledTemplateCache::store_inline(std::string_view source, CompiledProgram program,
+                                                           const EffectiveSettings& settings) {
+    const InlineCacheKey key = make_inline_key(source, settings);
+    std::lock_guard lock(mutex_);
+    const auto [it, inserted] = inline_cache_.insert_or_assign(key, CacheEntry{
+        .program = std::move(program),
+        .compiled_mtime = 0,
+        .trust_in_memory = true,
+        .validated_until = std::chrono::steady_clock::time_point::max(),
+    });
+    static_cast<void>(inserted);
+    return &it->second.program;
 }
 
 }

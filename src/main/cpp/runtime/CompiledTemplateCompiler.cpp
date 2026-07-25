@@ -8,6 +8,7 @@
 #include <bit>
 #include <cmath>
 #include <chrono>
+#include <limits>
 #include <optional>
 #include <unordered_map>
 
@@ -132,6 +133,7 @@ public:
     CompiledProgram build(const DocumentNode& document) {
         compile_nodes(document.children);
         emit_template(TemplateInstruction{.opcode = TemplateOpcode::End});
+        program_.output_size_hint = output_size_hint_;
         return std::move(program_);
     }
 
@@ -151,6 +153,17 @@ private:
     }
 
     std::uint32_t emit_template(TemplateInstruction instruction) {
+        switch (instruction.opcode) {
+        case TemplateOpcode::EmitText:
+            output_size_hint_ += instruction.data_length;
+            break;
+        case TemplateOpcode::EmitExpr:
+        case TemplateOpcode::EmitLuaExpr:
+            output_size_hint_ += 16;
+            break;
+        default:
+            break;
+        }
         program_.template_instructions.push_back(instruction);
         return static_cast<std::uint32_t>(program_.template_instructions.size() - 1);
     }
@@ -431,16 +444,22 @@ private:
                                               .data_length = slice.length,
                                               .arg0 = range.offset,
                                               .arg1 = range.length});
-            emit_template(TemplateInstruction{.opcode = TemplateOpcode::PushScope});
+            const std::uint32_t scope_instruction = emit_template(TemplateInstruction{.opcode = TemplateOpcode::PushScope});
+            ForLoopPatch patch{.scope_instruction = scope_instruction};
+            for_loop_stack_.push_back(patch);
             compile_nodes(for_node.body);
             emit_template(TemplateInstruction{.opcode = TemplateOpcode::PopScope});
             if (!for_node.else_body.empty()) {
-                emit_template(TemplateInstruction{.opcode = TemplateOpcode::ElseLoop});
+                for_loop_stack_.back().else_instruction = emit_template(TemplateInstruction{.opcode = TemplateOpcode::ElseLoop});
                 emit_template(TemplateInstruction{.opcode = TemplateOpcode::PushScope});
                 compile_nodes(for_node.else_body);
                 emit_template(TemplateInstruction{.opcode = TemplateOpcode::PopScope});
             }
-            emit_template(TemplateInstruction{.opcode = TemplateOpcode::EndFor});
+            const std::uint32_t end_instruction = emit_template(TemplateInstruction{.opcode = TemplateOpcode::EndFor});
+            const ForLoopPatch completed_patch = for_loop_stack_.back();
+            for_loop_stack_.pop_back();
+            program_.template_instructions[completed_patch.scope_instruction].arg0 = completed_patch.else_instruction;
+            program_.template_instructions[completed_patch.scope_instruction].arg1 = end_instruction;
             return;
         }
         case TemplateNodeKind::If: {
@@ -519,6 +538,14 @@ private:
 
     CompiledProgram program_;
     std::unordered_map<std::string, DataSlice> data_slices_;
+
+    struct ForLoopPatch {
+        std::uint32_t scope_instruction = 0;
+        std::uint32_t else_instruction = std::numeric_limits<std::uint32_t>::max();
+    };
+
+    std::vector<ForLoopPatch> for_loop_stack_;
+    std::uint32_t output_size_hint_ = 0;
 };
 
 }

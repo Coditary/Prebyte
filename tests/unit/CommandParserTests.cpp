@@ -79,3 +79,35 @@ TEST_CASE(CommandParser_reject_unknown_argument) {
     prebyte::CommandParser parser;
     REQUIRE_THROWS_AS(parser.parse({"--wat"}), prebyte::DiagnosticError);
 }
+
+TEST_CASE(CommandParser_parse_batch_from_file) {
+    prebyte::CommandParser parser;
+    const prebyte::Command command = parser.parse({"template.txt", "-b", "data.json", "-o", "output/"});
+
+    REQUIRE(command.input_path.has_value());
+    REQUIRE_EQ(command.input_path->string(), std::string("template.txt"));
+    REQUIRE(command.batch_path.has_value());
+    REQUIRE_EQ(command.batch_path->string(), std::string("data.json"));
+    REQUIRE(!command.batch_from_stdin);
+    REQUIRE(command.output_path.has_value());
+    REQUIRE_EQ(command.output_path->string(), std::string("output/"));
+}
+
+TEST_CASE(CommandParser_parse_batch_from_stdin) {
+    prebyte::CommandParser parser;
+    const prebyte::Command command = parser.parse({"template.txt", "--batch", "-o", "output/"});
+
+    REQUIRE(command.input_path.has_value());
+    REQUIRE(!command.batch_path.has_value());
+    REQUIRE(command.batch_from_stdin);
+}
+
+TEST_CASE(CommandParser_reject_batch_stdin_without_template_file) {
+    prebyte::CommandParser parser;
+    REQUIRE_THROWS_AS(parser.parse({"--batch"}), prebyte::DiagnosticError);
+}
+
+TEST_CASE(CommandParser_reject_conflicting_batch_sources) {
+    prebyte::CommandParser parser;
+    REQUIRE_THROWS_AS(parser.parse({"template.txt", "-b", "data.json", "--batch"}), prebyte::DiagnosticError);
+}
