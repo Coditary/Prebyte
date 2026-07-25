@@ -106,6 +106,15 @@ jobs:
         with:
           arch: ${{ matrix.arch == 'aarch64' && 'arm64' || 'x64' }}
 
+      # vcvarsall.bat (via msvc-dev-cmd) overwrites VCPKG_ROOT with Visual Studio's
+      # bundled vcpkg, which does not contain our preinstalled lua package.
+      - name: Restore vcpkg root (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $VcpkgRoot = Join-Path $env:RUNNER_TEMP 'vcpkg'
+          "VCPKG_ROOT=$VcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Configure (Unix)
         if: runner.os != 'Windows'
         shell: bash
