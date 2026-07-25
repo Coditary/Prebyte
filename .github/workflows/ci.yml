@@ -75,9 +75,27 @@ jobs:
 
       - name: Install macOS prerequisites
         if: runner.os == 'macOS'
+        shell: bash
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+          HOMEBREW_NO_INSTALL_UPGRADE: 1
         run: |
-          brew update
-          brew install ninja zstd
+          set -euo pipefail
+          missing=()
+          command -v ninja >/dev/null || missing+=(ninja)
+          command -v zstd >/dev/null || missing+=(zstd)
+          if ((${#missing[@]} == 0)); then
+            echo "ninja and zstd already available"
+            exit 0
+          fi
+          for attempt in 1 2 3; do
+            if brew install "${missing[@]}"; then
+              exit 0
+            fi
+            echo "brew install attempt ${attempt} failed; retrying..."
+            sleep $((attempt * 15))
+          done
+          exit 1
 
       - name: Bootstrap vcpkg (Unix)
         if: runner.os != 'Windows'
