@@ -276,13 +276,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gcovr \
-            --root "$GITHUB_WORKSPACE" \
-            --object-directory "$GITHUB_WORKSPACE/build-cmake/coverage" \
-            --filter "$GITHUB_WORKSPACE/src/main/cpp" \
-            --gcov-ignore-parse-errors=negative_hits.warn \
-            --xml-pretty \
-            --output build-cmake/coverage/coverage.xml
+          chmod +x scripts/ci/generate_coverage_report.sh
+          COVERAGE_MIN_LINE=85 ./scripts/ci/generate_coverage_report.sh
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4

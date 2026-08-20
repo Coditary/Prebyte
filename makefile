@@ -1,7 +1,9 @@
-.PHONY: all start run test benchmark compare-benchmark configure reqpack reqpack-index clean
+.PHONY: all start run test coverage benchmark compare-benchmark configure reqpack reqpack-index clean
 
 CMAKE_PRESET ?= dev
 CMAKE_BUILD_DIR := build-cmake/dev
+COVERAGE_MIN_LINE ?= 85
+COVERAGE_BUILD_DIR := build-cmake/coverage
 CMAKE_CACHE := $(CMAKE_BUILD_DIR)/CMakeCache.txt
 COMPARE_DIR := tools/benchmark_compare
 PREBYTE_VERSION ?= $(shell python3 -c 'import pathlib,re; text = pathlib.Path("CMakeLists.txt").read_text(encoding="utf-8"); match = re.search(r"project\([^\n]*VERSION\s+([^\s)]+)", text); print(match.group(1) if match else "0.0.0")')
@@ -28,6 +30,12 @@ run: start
 test: configure
 	cmake --build --preset $(CMAKE_PRESET) --target prebyte_tests
 	ctest --preset $(CMAKE_PRESET)
+
+coverage:
+	cmake --preset coverage
+	cmake --build --preset coverage-tests
+	ctest --preset coverage
+	COVERAGE_MIN_LINE=$(COVERAGE_MIN_LINE) ./scripts/ci/generate_coverage_report.sh
 
 benchmark: configure
 	cmake --build --preset $(CMAKE_PRESET) --target prebyte_benchmarks
