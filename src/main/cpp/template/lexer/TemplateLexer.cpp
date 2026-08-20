@@ -81,6 +81,9 @@ bool TemplateLexer::match_literal(std::string_view literal) const {
 }
 
 char TemplateLexer::advance() {
+    if (is_at_end()) {
+        return '\0';
+    }
     const char ch = source_[index_++];
     if (ch == '\n') {
         ++line_;
@@ -370,6 +373,9 @@ void TemplateLexer::lex_string() {
     while (!is_at_end() && peek() != '"') {
         char ch = advance();
         if (ch == '\\') {
+            if (is_at_end()) {
+                throw DiagnosticError(make_lexer_error("Unterminated string literal", file_path_, start));
+            }
             const char escaped = advance();
             switch (escaped) {
             case 'n': value.push_back('\n'); break;

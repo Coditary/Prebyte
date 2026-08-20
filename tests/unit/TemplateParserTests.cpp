@@ -248,3 +248,19 @@ TEST_CASE(TemplateParser_reject_duplicate_function_parameter_name) {
     prebyte::TemplateParser parser(lexer.lex(), prebyte::TemplateParserOptions{.enable_loops = true});
     REQUIRE_THROWS_AS(parser.parse_document(), prebyte::DiagnosticError);
 }
+
+TEST_CASE(TemplateParser_reject_deeply_nested_expression) {
+    std::string source = "{{ ";
+    for (int index = 0; index < 100; ++index) {
+        source.push_back('(');
+    }
+    source += "1";
+    for (int index = 0; index < 100; ++index) {
+        source.push_back(')');
+    }
+    source += " }}";
+
+    prebyte::TemplateLexer lexer(source, "inline");
+    prebyte::TemplateParser parser(lexer.lex());
+    REQUIRE_THROWS_AS(parser.parse_document(), prebyte::DiagnosticError);
+}

@@ -21,6 +21,7 @@ public:
     FileMetadata probe(const std::filesystem::path& path);
     void remember(const std::filesystem::path& path, FileMetadata metadata);
     void invalidate(const std::filesystem::path& path);
+    void clear();
 
 private:
     struct Entry {

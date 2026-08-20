@@ -12,6 +12,7 @@ namespace prebyte {
 namespace {
 
 constexpr auto kMetadataCacheTtl = std::chrono::milliseconds(250);
+constexpr std::size_t kMaxMetadataCacheEntries = 8192;
 
 #ifndef _WIN32
 std::int64_t stat_mtime_ticks(const struct stat& info) {
@@ -71,7 +72,23 @@ void FileMetadataCache::remember(const std::filesystem::path& path, FileMetadata
     }
 
     std::lock_guard lock(mutex_);
-    cache_[normalize_path(path)] = Entry{metadata, std::chrono::steady_clock::now() + kMetadataCacheTtl};
+    const auto now = std::chrono::steady_clock::now();
+    for (auto it = cache_.begin(); it != cache_.end();) {
+        if (now >= it->second.expires_at) {
+            it = cache_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    if (cache_.size() >= kMaxMetadataCacheEntries) {
+        cache_.clear();
+    }
+    cache_[normalize_path(path)] = Entry{metadata, now + kMetadataCacheTtl};
+}
+
+void FileMetadataCache::clear() {
+    std::lock_guard lock(mutex_);
+    cache_.clear();
 }
 
 void FileMetadataCache::invalidate(const std::filesystem::path& path) {

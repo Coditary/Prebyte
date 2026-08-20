@@ -81,6 +81,25 @@ bool path_is_directory(const std::filesystem::path& path) {
     return std::filesystem::is_directory(path, error) && !error;
 }
 
+constexpr std::size_t kMaxIncludePathLength = 4096;
+constexpr std::size_t kMaxIncludePathSeparators = 64;
+
+void validate_include_path(const std::string& include_path, const RenderSession& session) {
+    if (include_path.size() > kMaxIncludePathLength) {
+        throw DiagnosticError(make_include_error("Include path is too long", include_path, session));
+    }
+
+    std::size_t separators = 0;
+    for (char ch : include_path) {
+        if (ch == '/' || ch == '\\') {
+            ++separators;
+        }
+    }
+    if (separators > kMaxIncludePathSeparators) {
+        throw DiagnosticError(make_include_error("Include path is too deep", include_path, session));
+    }
+}
+
 bool try_accept_include(const std::filesystem::path& physical_path, const std::filesystem::path& logical_path,
                         ResolvedIncludeKind kind, RenderSession& session, ResolvedInclude& resolved) {
     const std::filesystem::path absolute = canonical_path(physical_path);
@@ -198,6 +217,8 @@ IncludeResolver::CacheKey cache_key_for(const std::string& include_path,
 
 ResolvedInclude IncludeResolver::load(const std::string& include_path, const std::filesystem::path& current_file,
                                       const EffectiveSettings& settings, RenderSession& session) const {
+    validate_include_path(include_path, session);
+
     ResolvedInclude resolved;
     const CacheKey cache_key = cache_key_for(include_path, current_file, settings);
 

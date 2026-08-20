@@ -51,3 +51,8 @@ TEST_CASE(TemplateLexer_fail_on_unclosed_tag_with_function_header) {
     prebyte::TemplateLexer lexer("{{ fn greet(name)", "inline");
     REQUIRE_THROWS_AS(lexer.lex(), prebyte::DiagnosticError);
 }
+
+TEST_CASE(TemplateLexer_fail_on_truncated_string_escape) {
+    prebyte::TemplateLexer lexer("{{-\"\\", "inline");
+    REQUIRE_THROWS_AS(lexer.lex(), prebyte::DiagnosticError);
+}

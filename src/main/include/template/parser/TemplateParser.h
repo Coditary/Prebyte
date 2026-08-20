@@ -47,9 +47,12 @@ private:
     std::unique_ptr<ExpressionNode> parse_primary();
     std::string parse_raw_body_until(TemplateTokenType terminator);
     Diagnostic make_error(const TemplateToken& token, const std::string& message) const;
+    void push_expression_depth();
+    void pop_expression_depth();
 
     std::vector<TemplateToken> tokens_;
     std::size_t current_ = 0;
+    std::size_t expression_depth_ = 0;
     TemplateParserOptions options_;
 };
 

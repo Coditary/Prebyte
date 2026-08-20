@@ -58,6 +58,8 @@ void apply_trim_flags(TemplateNode& node, const TemplateToken& start, const Temp
     node.trim_right = end.trim_right;
 }
 
+constexpr std::size_t kMaxExpressionDepth = 64;
+
 }
 
 TemplateParser::TemplateParser(std::vector<TemplateToken> tokens, TemplateParserOptions options)
@@ -417,7 +419,10 @@ std::unique_ptr<InterpolationNode> TemplateParser::parse_interpolation() {
 }
 
 std::unique_ptr<ExpressionNode> TemplateParser::parse_expression() {
-    return parse_pipe();
+    push_expression_depth();
+    auto expression = parse_pipe();
+    pop_expression_depth();
+    return expression;
 }
 
 std::unique_ptr<ExpressionNode> TemplateParser::parse_pipe() {
@@ -620,6 +625,19 @@ Diagnostic TemplateParser::make_error(const TemplateToken& token, const std::str
     diagnostic.span = token.span;
     diagnostic.snippet = token.lexeme;
     return diagnostic;
+}
+
+void TemplateParser::push_expression_depth() {
+    if (expression_depth_ >= kMaxExpressionDepth) {
+        throw DiagnosticError(make_error(peek(), "Expression nesting is too deep"));
+    }
+    ++expression_depth_;
+}
+
+void TemplateParser::pop_expression_depth() {
+    if (expression_depth_ > 0) {
+        --expression_depth_;
+    }
 }
 
 }

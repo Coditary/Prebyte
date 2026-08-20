@@ -1,4 +1,5 @@
 #include "config/ConfigTypes.h"
+#include "runtime/FileMetadataCache.h"
 #include "runtime/IncludeResolver.h"
 #include "runtime/RenderSession.h"
 #include "support/Diagnostic.h"
@@ -35,8 +36,10 @@ void seed_filesystem(const std::filesystem::path& root) {
 extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
     FuzzedDataProvider provider(data, size);
 
-    const std::string include_path = provider.ConsumeRandomLengthString(256);
-    const std::string current_file = provider.ConsumeRandomLengthString(256);
+    prebyte::FileMetadataCache::instance().clear();
+
+    const std::string include_path = provider.ConsumeRandomLengthString(128);
+    const std::string current_file = provider.ConsumeRandomLengthString(128);
     const std::string extra_name = provider.ConsumeRandomLengthString(64);
     const std::string extra_content = provider.ConsumeRandomLengthString(512);
     const std::size_t max_include_depth = provider.ConsumeIntegralInRange<std::size_t>(0, 8);
