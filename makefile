@@ -1,8 +1,9 @@
-.PHONY: all start run test coverage analyze lint security static-analysis benchmark compare-benchmark configure reqpack reqpack-index clean
+.PHONY: all start run test coverage analyze lint security static-analysis sanitize fuzz benchmark compare-benchmark configure reqpack reqpack-index clean
 
 CMAKE_PRESET ?= dev
 CMAKE_BUILD_DIR := build-cmake/dev
 COVERAGE_MIN_LINE ?= 85
+PREBYTE_FUZZ_MAX_TOTAL_TIME ?= 60
 COVERAGE_BUILD_DIR := build-cmake/coverage
 CLANG_TIDY_BUILD_DIR := build-cmake/tidy
 CMAKE_CACHE := $(CMAKE_BUILD_DIR)/CMakeCache.txt
@@ -50,7 +51,13 @@ security:
 static-analysis:
 	./scripts/ci/run_clang_tidy.sh all
 
-.NOTPARALLEL: analyze lint security static-analysis
+sanitize:
+	./scripts/ci/run_sanitize_tests.sh
+
+fuzz:
+	PREBYTE_FUZZ_MAX_TOTAL_TIME=$(PREBYTE_FUZZ_MAX_TOTAL_TIME) ./scripts/ci/run_fuzzers.sh
+
+.NOTPARALLEL: analyze lint security static-analysis sanitize fuzz
 
 benchmark: configure
 	cmake --build --preset $(CMAKE_PRESET) --target prebyte_benchmarks
@@ -89,4 +96,4 @@ reqpack-index:
 		--output "$(REQPACK_OUTPUT_DIR)/index.json"
 
 clean:
-	rm -rf build build-cmake "$(COMPARE_DIR)/bench_prebyte"
+	rm -rf build build-cmake "$(COMPARE_DIR)/bench_prebyte" crash-*

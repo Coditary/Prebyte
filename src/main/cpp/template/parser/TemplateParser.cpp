@@ -71,6 +71,10 @@ std::unique_ptr<DocumentNode> TemplateParser::parse_document() {
 }
 
 const TemplateToken& TemplateParser::peek(std::size_t offset) const {
+    if (tokens_.empty()) {
+        throw DiagnosticError(make_error(TemplateToken{TemplateTokenType::EndOfFile, "", {}}, "Empty template token stream"));
+    }
+
     const std::size_t index = current_ + offset;
     if (index >= tokens_.size()) {
         return tokens_.back();
@@ -95,10 +99,14 @@ bool TemplateParser::match(TemplateTokenType type) {
 }
 
 const TemplateToken& TemplateParser::advance() {
-    if (!is_at_end()) {
-        ++current_;
+    if (tokens_.empty()) {
+        throw DiagnosticError(make_error(TemplateToken{TemplateTokenType::EndOfFile, "", {}}, "Empty template token stream"));
     }
-    return tokens_[current_ - 1];
+    if (current_ >= tokens_.size()) {
+        return tokens_.back();
+    }
+
+    return tokens_[current_++];
 }
 
 const TemplateToken& TemplateParser::consume(TemplateTokenType type, const std::string& message) {

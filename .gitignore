@@ -6,3 +6,5 @@ dist
 *.pbc
 *.gcov.json.gz
 tools/benchmark_compare/target/
+tests/fuzz/corpus/
+crash-*

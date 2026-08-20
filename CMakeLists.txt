@@ -12,7 +12,9 @@ include(GNUInstallDirs)
 
 option(PREBYTE_BUILD_TESTS "Build test binary" ON)
 option(PREBYTE_BUILD_BENCHMARKS "Build benchmark binary" ON)
+option(PREBYTE_BUILD_FUZZERS "Build libFuzzer targets" OFF)
 option(PREBYTE_ENABLE_COVERAGE "Enable GCC/GCov coverage instrumentation" OFF)
+option(PREBYTE_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
 find_package(Lua REQUIRED)
 
@@ -79,6 +81,18 @@ if(PREBYTE_ENABLE_COVERAGE)
     else()
         message(FATAL_ERROR "PREBYTE_ENABLE_COVERAGE requires GCC-compatible coverage flags")
     endif()
+endif()
+
+if(PREBYTE_ENABLE_SANITIZERS)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang")
+        message(FATAL_ERROR "PREBYTE_ENABLE_SANITIZERS requires Clang")
+    endif()
+
+    set(PREBYTE_SANITIZER_COMPILE_OPTIONS -fsanitize=address,undefined -fno-omit-frame-pointer -g)
+    set(PREBYTE_SANITIZER_LINK_OPTIONS -fsanitize=address,undefined)
+
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:${PREBYTE_SANITIZER_COMPILE_OPTIONS}>")
+    add_link_options(${PREBYTE_SANITIZER_LINK_OPTIONS})
 endif()
 
 add_executable(prebyte src/main/cpp/main.cpp)
@@ -149,6 +163,62 @@ if(PREBYTE_BUILD_TESTS)
             )
             set_tests_properties(${PREBYTE_TEST_NAME} PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
         endforeach()
+    endforeach()
+endif()
+
+if(PREBYTE_BUILD_FUZZERS)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang")
+        message(FATAL_ERROR "PREBYTE_BUILD_FUZZERS requires Clang with libFuzzer support")
+    endif()
+
+    if(NOT PREBYTE_ENABLE_SANITIZERS)
+        message(FATAL_ERROR "PREBYTE_BUILD_FUZZERS requires PREBYTE_ENABLE_SANITIZERS")
+    endif()
+
+    enable_testing()
+
+    set(PREBYTE_FUZZ_TARGETS
+        fuzz_template_lexer
+        fuzz_template_parser
+        fuzz_json_parser
+    )
+
+    set(PREBYTE_FUZZ_SOURCES
+        tests/fuzz/TemplateLexerFuzz.cpp
+        tests/fuzz/TemplateParserFuzz.cpp
+        tests/fuzz/JsonParserFuzz.cpp
+    )
+
+    list(LENGTH PREBYTE_FUZZ_TARGETS PREBYTE_FUZZ_TARGET_COUNT)
+    math(EXPR PREBYTE_FUZZ_LAST_INDEX "${PREBYTE_FUZZ_TARGET_COUNT} - 1")
+
+    if(DEFINED ENV{PREBYTE_FUZZ_MAX_TOTAL_TIME})
+        set(PREBYTE_FUZZ_MAX_TOTAL_TIME "$ENV{PREBYTE_FUZZ_MAX_TOTAL_TIME}")
+    else()
+        set(PREBYTE_FUZZ_MAX_TOTAL_TIME 60)
+    endif()
+
+    foreach(PREBYTE_FUZZ_INDEX RANGE ${PREBYTE_FUZZ_LAST_INDEX})
+        list(GET PREBYTE_FUZZ_TARGETS ${PREBYTE_FUZZ_INDEX} PREBYTE_FUZZ_TARGET)
+        list(GET PREBYTE_FUZZ_SOURCES ${PREBYTE_FUZZ_INDEX} PREBYTE_FUZZ_SOURCE)
+
+        add_executable(${PREBYTE_FUZZ_TARGET} ${PREBYTE_FUZZ_SOURCE})
+        target_link_libraries(${PREBYTE_FUZZ_TARGET} PRIVATE prebyte_core)
+        target_compile_options(${PREBYTE_FUZZ_TARGET} PRIVATE -fsanitize=fuzzer)
+        target_link_options(${PREBYTE_FUZZ_TARGET} PRIVATE -fsanitize=fuzzer)
+
+        set(PREBYTE_FUZZ_CORPUS "${CMAKE_SOURCE_DIR}/tests/fuzz/corpus/${PREBYTE_FUZZ_TARGET}")
+        add_test(
+            NAME ${PREBYTE_FUZZ_TARGET}
+            COMMAND ${PREBYTE_FUZZ_TARGET}
+                -max_total_time=${PREBYTE_FUZZ_MAX_TOTAL_TIME}
+                -close_fd_mask=3
+                ${PREBYTE_FUZZ_CORPUS}
+        )
+        set_tests_properties(${PREBYTE_FUZZ_TARGET} PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 300
+        )
     endforeach()
 endif()
 
