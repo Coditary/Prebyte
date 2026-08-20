@@ -6,6 +6,8 @@
 #include "runtime/ExpressionEvaluator.h"
 #include "runtime/LuaExpressionEngine.h"
 #include "support/Diagnostic.h"
+#include "template/lexer/TemplateLexer.h"
+#include "template/parser/TemplateParser.h"
 
 #include <chrono>
 
@@ -32,6 +34,27 @@ void register_functions(prebyte::RenderSession& session, const prebyte::Compiled
         function.definition_span = compiled.span;
         session.set_function(compiled.name, std::move(function));
     }
+}
+
+prebyte::Value evaluate_expression(const std::string& source, prebyte::RenderSession& session,
+                                   prebyte::EffectiveSettings settings = {}) {
+    const std::string wrapped = "{{ " + source + " }}";
+    prebyte::TemplateLexer lexer(wrapped, "inline");
+    prebyte::TemplateParser parser(lexer.lex());
+    const auto document = parser.parse_document();
+    const prebyte::InterpolationNode* interpolation = nullptr;
+    for (const auto& child : document->children) {
+        if (child->kind == prebyte::TemplateNodeKind::Interpolation) {
+            interpolation = static_cast<const prebyte::InterpolationNode*>(child.get());
+            break;
+        }
+    }
+    if (interpolation == nullptr || interpolation->expression == nullptr) {
+        throw std::runtime_error("Expected interpolation expression in: " + source);
+    }
+    prebyte::BuiltinRegistry builtins;
+    prebyte::ExpressionEvaluator evaluator(builtins);
+    return evaluator.evaluate(*interpolation->expression, settings, session, "inline");
 }
 
 }
@@ -132,4 +155,77 @@ TEST_CASE(LuaExpressionEngine_initializes_runtime_and_evaluates) {
 
     REQUIRE(session.lua_runtime != nullptr);
     REQUIRE_EQ(value.to_string(), std::string("42"));
+}
+
+TEST_CASE(ExpressionEvaluator_evaluates_literals_member_access_and_index) {
+    prebyte::RenderSession session;
+    session.variables.set("name", "Ada");
+    session.variables.set("user.name", "Ada");
+    session.variables.set_value("items", prebyte::Value::list(prebyte::Data::Array{
+        prebyte::Data("Ada"),
+        prebyte::Data("Grace"),
+    }));
+
+    REQUIRE(evaluate_expression("(true)", session).to_bool());
+    REQUIRE_EQ(evaluate_expression("name", session).to_string(), std::string("Ada"));
+    REQUIRE_EQ(evaluate_expression("user.name", session).to_string(), std::string("Ada"));
+    REQUIRE_EQ(evaluate_expression("items[0]", session).to_string(), std::string("Ada"));
+    REQUIRE_EQ(evaluate_expression("len(items)", session).to_string(), std::string("2"));
+}
+
+TEST_CASE(ExpressionEvaluator_evaluates_args_index_and_grouped_expression) {
+    prebyte::RenderSession session;
+    session.args = {"first", "second"};
+
+    REQUIRE_EQ(evaluate_expression("ARGS[0]", session).to_string(), std::string("first"));
+    REQUIRE(evaluate_expression("(true)", session).to_bool());
+}
+
+TEST_CASE(ExpressionEvaluator_evaluates_comparisons_equality_and_in) {
+    prebyte::RenderSession session;
+    session.variables.set("count", "2");
+    session.variables.set("label", "Ada");
+    session.variables.set_value("items", prebyte::Value::list(prebyte::Data::Array{
+        prebyte::Data("Ada"),
+        prebyte::Data("Grace"),
+    }));
+    session.variables.set_value("user", prebyte::Value::object(prebyte::Data::Map{
+        {"name", prebyte::Data("Ada")},
+    }));
+
+    REQUIRE(evaluate_expression("count == 2", session).to_bool());
+    REQUIRE(evaluate_expression("count != 3", session).to_bool());
+    REQUIRE(evaluate_expression("count < 3", session).to_bool());
+    REQUIRE(evaluate_expression("count <= 2", session).to_bool());
+    REQUIRE(evaluate_expression("count > 1", session).to_bool());
+    REQUIRE(evaluate_expression("count >= 2", session).to_bool());
+    REQUIRE(evaluate_expression("\"a\" in label", session).to_bool());
+    REQUIRE(evaluate_expression("\"Ada\" in items", session).to_bool());
+    REQUIRE(evaluate_expression("\"name\" in user", session).to_bool());
+}
+
+TEST_CASE(ExpressionEvaluator_evaluates_unary_not_and_filters) {
+    prebyte::RenderSession session;
+    session.variables.set("name", " ada ");
+
+    REQUIRE(evaluate_expression("!false", session).to_bool());
+    REQUIRE_EQ(evaluate_expression("name | trim | upper", session).to_string(), std::string("ADA"));
+}
+
+TEST_CASE(ExpressionEvaluator_evaluates_lua_call_expression) {
+    prebyte::BuiltinRegistry builtins;
+    prebyte::ExpressionEvaluator evaluator(builtins);
+    prebyte::EffectiveSettings settings;
+    prebyte::RenderSession session;
+    prebyte::LuaCallExpr expression("return 7");
+    REQUIRE_EQ(evaluator.evaluate(expression, settings, session, "inline").to_string(), std::string("7"));
+}
+
+TEST_CASE(ExpressionEvaluator_rejects_structured_comparisons_and_invalid_args) {
+    prebyte::RenderSession session;
+    session.variables.set_value("left", prebyte::Value::object(prebyte::Data::Map{{"a", prebyte::Data(1)}}));
+    session.variables.set_value("right", prebyte::Value::object(prebyte::Data::Map{{"a", prebyte::Data(2)}}));
+
+    REQUIRE_THROWS_AS(evaluate_expression("left == right", session), prebyte::DiagnosticError);
+    REQUIRE_THROWS_AS(evaluate_expression("ARGS", session), prebyte::DiagnosticError);
 }

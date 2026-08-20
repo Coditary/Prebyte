@@ -3,6 +3,8 @@
 #include "parser/EnvParser.h"
 #include "parser/IniParser.h"
 #include "parser/JsonParser.h"
+#include "parser/TomlParser.h"
+#include "parser/YamlParser.h"
 
 #include <filesystem>
 #include <fstream>
@@ -138,5 +140,33 @@ TEST_CASE(EnvParser_invalid_lines_and_wrong_extension_fail) {
     prebyte::EnvParser parser;
     REQUIRE_THROWS_AS(parser.parse_string("BROKEN"), std::runtime_error);
     REQUIRE(!parser.can_parse(invalid));
+    REQUIRE(!parser.can_parse(wrong_ext));
+}
+
+TEST_CASE(YamlParser_parse_string_mappings_lists_and_scalars) {
+    prebyte::YamlParser parser;
+    const prebyte::Data mapping = parser.parse_string(R"(
+name: Ada
+active: true
+score: 42
+roles:
+  - admin
+  - editor
+)");
+    REQUIRE_EQ(mapping.as_map().at("name").as_string(), std::string("Ada"));
+    REQUIRE(mapping.as_map().at("active").as_bool());
+    REQUIRE_EQ(mapping.as_map().at("score").as_int(), 42);
+    REQUIRE_EQ(mapping.as_map().at("roles").as_array().size(), static_cast<std::size_t>(2));
+}
+
+TEST_CASE(YamlParser_can_parse_valid_and_reject_invalid_files) {
+    const std::filesystem::path root = parser_test_root("yaml-file");
+    const std::filesystem::path path = root / "settings.yaml";
+    const std::filesystem::path wrong_ext = root / "settings.txt";
+    write_parser_file(path, "name: Ada\n");
+    write_parser_file(wrong_ext, "name: Ada\n");
+
+    prebyte::YamlParser parser;
+    REQUIRE(parser.can_parse(path));
     REQUIRE(!parser.can_parse(wrong_ext));
 }
