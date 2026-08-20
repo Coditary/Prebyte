@@ -65,13 +65,31 @@ std::int64_t read_i64(std::string_view bytes, std::size_t& offset) {
 
 std::string read_string(std::string_view bytes, std::size_t& offset) {
     const std::uint32_t size = read_u32(bytes, offset);
-    if (offset + size > bytes.size()) {
+    if (size > bytes.size() - offset) {
         throw DiagnosticError(make_compile_error("Unexpected end of compiled template"));
     }
     std::string value(bytes.substr(offset, size));
     offset += size;
     return value;
 }
+
+void require_remaining(std::string_view bytes, std::size_t offset, std::size_t needed,
+                       const std::filesystem::path& path) {
+    if (needed > bytes.size() || offset > bytes.size() - needed) {
+        throw DiagnosticError(make_compile_error("Invalid compiled template section size", path));
+    }
+}
+
+std::size_t mul_or_throw(std::uint32_t count, std::size_t item_size, const std::filesystem::path& path) {
+    if (item_size != 0 && count > std::numeric_limits<std::size_t>::max() / item_size) {
+        throw DiagnosticError(make_compile_error("Compiled template section too large", path));
+    }
+    return static_cast<std::size_t>(count) * item_size;
+}
+
+constexpr std::size_t kInstructionBytes = 5 * sizeof(std::uint32_t);
+constexpr std::size_t kDependencyMinBytes = sizeof(std::uint32_t) + sizeof(std::int64_t);
+constexpr std::size_t kFunctionMinBytes = 6 * sizeof(std::uint32_t);
 
 }
 
@@ -158,7 +176,7 @@ CompiledProgram CompiledTemplateSerializer::deserialize(std::string_view bytes,
     const std::uint32_t dependency_count = read_u32(bytes, offset);
     const std::uint32_t function_count = read_u32(bytes, offset);
 
-    program.template_instructions.reserve(template_count);
+    require_remaining(bytes, offset, mul_or_throw(template_count, kInstructionBytes, compiled_path), compiled_path);
     for (std::uint32_t index = 0; index < template_count; ++index) {
         program.template_instructions.push_back(TemplateInstruction{
             .opcode = static_cast<TemplateOpcode>(read_u32(bytes, offset)),
@@ -169,7 +187,7 @@ CompiledProgram CompiledTemplateSerializer::deserialize(std::string_view bytes,
         });
     }
 
-    program.expression_instructions.reserve(expression_count);
+    require_remaining(bytes, offset, mul_or_throw(expression_count, kInstructionBytes, compiled_path), compiled_path);
     for (std::uint32_t index = 0; index < expression_count; ++index) {
         program.expression_instructions.push_back(ExpressionInstruction{
             .opcode = static_cast<ExpressionOpcode>(read_u32(bytes, offset)),
@@ -180,24 +198,25 @@ CompiledProgram CompiledTemplateSerializer::deserialize(std::string_view bytes,
         });
     }
 
-    if (offset + data_size > bytes.size()) {
+    if (data_size > bytes.size() - offset) {
         throw DiagnosticError(make_compile_error("Invalid compiled template data section", compiled_path));
     }
     program.data_blob.assign(bytes.substr(offset, data_size));
     offset += data_size;
 
-    program.dependencies.reserve(dependency_count);
+    require_remaining(bytes, offset, mul_or_throw(dependency_count, kDependencyMinBytes, compiled_path), compiled_path);
     for (std::uint32_t index = 0; index < dependency_count; ++index) {
         program.dependencies.push_back(CompiledDependency{read_string(bytes, offset), read_i64(bytes, offset)});
     }
 
-    program.functions.reserve(function_count);
+    require_remaining(bytes, offset, mul_or_throw(function_count, kFunctionMinBytes, compiled_path), compiled_path);
     for (std::uint32_t index = 0; index < function_count; ++index) {
         CompiledFunction function;
         function.kind = static_cast<CompiledFunction::Kind>(read_u32(bytes, offset));
         function.name = read_string(bytes, offset);
         const std::uint32_t parameter_count = read_u32(bytes, offset);
-        function.parameters.reserve(parameter_count);
+        require_remaining(bytes, offset, mul_or_throw(parameter_count, sizeof(std::uint32_t), compiled_path),
+                          compiled_path);
         for (std::uint32_t parameter_index = 0; parameter_index < parameter_count; ++parameter_index) {
             function.parameters.push_back(read_string(bytes, offset));
         }

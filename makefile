@@ -1,4 +1,4 @@
-.PHONY: all start run test coverage analyze lint security static-analysis sanitize fuzz benchmark compare-benchmark configure reqpack reqpack-index clean
+.PHONY: all start run test coverage analyze lint security static-analysis sanitize tsan msan fuzz benchmark compare-benchmark configure reqpack reqpack-index clean
 
 CMAKE_PRESET ?= dev
 CMAKE_BUILD_DIR := build-cmake/dev
@@ -51,13 +51,21 @@ security:
 static-analysis:
 	./scripts/ci/run_clang_tidy.sh all
 
+MSAN_CMAKE_ARGS ?=
+
 sanitize:
-	./scripts/ci/run_sanitize_tests.sh
+	./scripts/ci/run_sanitize_tests.sh asan
+
+tsan:
+	./scripts/ci/run_sanitize_tests.sh tsan
+
+msan:
+	./scripts/ci/run_sanitize_tests.sh msan $(MSAN_CMAKE_ARGS)
 
 fuzz:
 	PREBYTE_FUZZ_MAX_TOTAL_TIME=$(PREBYTE_FUZZ_MAX_TOTAL_TIME) ./scripts/ci/run_fuzzers.sh
 
-.NOTPARALLEL: analyze lint security static-analysis sanitize fuzz
+.NOTPARALLEL: analyze lint security static-analysis sanitize tsan msan fuzz
 
 benchmark: configure
 	cmake --build --preset $(CMAKE_PRESET) --target prebyte_benchmarks

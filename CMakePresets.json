@@ -54,7 +54,39 @@
         "CMAKE_CXX_SCAN_FOR_MODULES": "OFF",
         "PREBYTE_BUILD_TESTS": "ON",
         "PREBYTE_BUILD_BENCHMARKS": "OFF",
-        "PREBYTE_ENABLE_SANITIZERS": "ON"
+        "PREBYTE_ENABLE_SANITIZERS": "ON",
+        "PREBYTE_SANITIZERS": "address,undefined"
+      }
+    },
+    {
+      "name": "tsan",
+      "displayName": "ThreadSanitizer Ninja",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build-cmake/tsan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_CXX_SCAN_FOR_MODULES": "OFF",
+        "PREBYTE_BUILD_TESTS": "ON",
+        "PREBYTE_BUILD_BENCHMARKS": "OFF",
+        "PREBYTE_ENABLE_SANITIZERS": "ON",
+        "PREBYTE_SANITIZERS": "thread"
+      }
+    },
+    {
+      "name": "msan",
+      "displayName": "MemorySanitizer Ninja",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build-cmake/msan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_SCAN_FOR_MODULES": "OFF",
+        "PREBYTE_BUILD_TESTS": "ON",
+        "PREBYTE_BUILD_BENCHMARKS": "OFF",
+        "PREBYTE_ENABLE_SANITIZERS": "ON",
+        "PREBYTE_SANITIZERS": "memory"
       }
     },
     {
@@ -69,7 +101,8 @@
         "PREBYTE_BUILD_TESTS": "OFF",
         "PREBYTE_BUILD_BENCHMARKS": "OFF",
         "PREBYTE_BUILD_FUZZERS": "ON",
-        "PREBYTE_ENABLE_SANITIZERS": "ON"
+        "PREBYTE_ENABLE_SANITIZERS": "ON",
+        "PREBYTE_SANITIZERS": "address,undefined"
       }
     }
   ],
@@ -113,6 +146,16 @@
       "targets": ["prebyte_tests"]
     },
     {
+      "name": "tsan-tests",
+      "configurePreset": "tsan",
+      "targets": ["prebyte_tests"]
+    },
+    {
+      "name": "msan-tests",
+      "configurePreset": "msan",
+      "targets": ["prebyte_tests"]
+    },
+    {
       "name": "fuzz",
       "configurePreset": "fuzz"
     }
@@ -135,6 +178,20 @@
     {
       "name": "sanitize",
       "configurePreset": "sanitize",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "tsan",
+      "configurePreset": "tsan",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "msan",
+      "configurePreset": "msan",
       "output": {
         "outputOnFailure": true
       }

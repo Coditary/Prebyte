@@ -70,7 +70,7 @@ private:
             skip_whitespace();
             consume(':');
             skip_whitespace();
-            object[key] = parse_value();
+            object.emplace(key, parse_value());
             skip_whitespace();
             if (peek() == '}') {
                 advance();

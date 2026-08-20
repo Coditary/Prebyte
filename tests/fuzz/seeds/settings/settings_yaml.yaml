@@ -1,0 +1,11 @@
+variables:
+  greeting: Hello
+  name: Grace
+ignore:
+  - secret
+rules:
+  trim: "true"
+profiles:
+  dev:
+    rules:
+      strict_variables: "true"

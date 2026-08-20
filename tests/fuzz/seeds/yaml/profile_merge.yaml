@@ -1,0 +1,14 @@
+variables:
+  greeting: Hello
+  name: Grace
+ignore:
+  - base_ignore
+profiles:
+  friendly:
+    ignore:
+      - friendly_ignore
+    variables:
+      greeting: Hi
+  strict:
+    rules:
+      strict_variables: true

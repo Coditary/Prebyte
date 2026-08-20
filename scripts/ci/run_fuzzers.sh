@@ -11,6 +11,13 @@ FUZZ_TARGETS=(
     fuzz_template_lexer
     fuzz_template_parser
     fuzz_json_parser
+    fuzz_yaml_parser
+    fuzz_toml_parser
+    fuzz_ini_parser
+    fuzz_env_parser
+    fuzz_compiled_template_serializer
+    fuzz_settings_loader
+    fuzz_include_resolver
 )
 
 seed_dir_for_target() {
@@ -20,6 +27,27 @@ seed_dir_for_target() {
             ;;
         fuzz_json_parser)
             printf '%s/tests/fuzz/seeds/json\n' "$ROOT"
+            ;;
+        fuzz_yaml_parser)
+            printf '%s/tests/fuzz/seeds/yaml\n' "$ROOT"
+            ;;
+        fuzz_toml_parser)
+            printf '%s/tests/fuzz/seeds/toml\n' "$ROOT"
+            ;;
+        fuzz_ini_parser)
+            printf '%s/tests/fuzz/seeds/ini\n' "$ROOT"
+            ;;
+        fuzz_env_parser)
+            printf '%s/tests/fuzz/seeds/env\n' "$ROOT"
+            ;;
+        fuzz_compiled_template_serializer)
+            printf '%s/tests/fuzz/seeds/pbc\n' "$ROOT"
+            ;;
+        fuzz_settings_loader)
+            printf '%s/tests/fuzz/seeds/settings\n' "$ROOT"
+            ;;
+        fuzz_include_resolver)
+            printf '%s/tests/fuzz/seeds/include\n' "$ROOT"
             ;;
         *)
             printf 'Unknown fuzz target: %s\n' "$1" >&2

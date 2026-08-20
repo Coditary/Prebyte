@@ -341,7 +341,7 @@ jobs:
           ./scripts/ci/run_clang_tidy.sh security
 
   sanitize:
-    name: sanitize-linux-x86_64
+    name: asan-ubsan-linux-x86_64
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -364,14 +364,81 @@ jobs:
           echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
           "$VCPKG_ROOT/vcpkg" install "lua:x64-linux"
 
-      - name: Run sanitizer tests
+      - name: Run ASan/UBSan tests
         shell: bash
         run: |
           set -euo pipefail
           chmod +x scripts/ci/run_sanitize_tests.sh
-          ./scripts/ci/run_sanitize_tests.sh \
+          ./scripts/ci/run_sanitize_tests.sh asan \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-linux
+
+  tsan:
+    name: tsan-linux-x86_64
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install sanitizer prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang ninja-build pkg-config
+
+      - name: Bootstrap vcpkg
+        shell: bash
+        run: |
+          set -euo pipefail
+          VCPKG_ROOT="$RUNNER_TEMP/vcpkg"
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
+          "$VCPKG_ROOT/vcpkg" install "lua:x64-linux"
+
+      - name: Run TSan tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/run_sanitize_tests.sh
+          ./scripts/ci/run_sanitize_tests.sh tsan \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux
+
+  msan:
+    name: msan-linux-x86_64
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install sanitizer prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang ninja-build pkg-config
+
+      - name: Bootstrap vcpkg with MSan
+        shell: bash
+        env:
+          VCPKG_ROOT: ${{ runner.temp }}/vcpkg
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/bootstrap_vcpkg_lua.sh
+          ./scripts/ci/bootstrap_vcpkg_lua.sh msan
+          echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
+
+      - name: Run MSan tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/run_sanitize_tests.sh
+          ./scripts/ci/run_sanitize_tests.sh msan \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux-msan \
+            -DVCPKG_OVERLAY_TRIPLETS="$GITHUB_WORKSPACE/cmake/vcpkg/triplets"
 
   fuzz:
     name: fuzz-linux-x86_64

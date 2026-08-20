@@ -14,7 +14,9 @@ option(PREBYTE_BUILD_TESTS "Build test binary" ON)
 option(PREBYTE_BUILD_BENCHMARKS "Build benchmark binary" ON)
 option(PREBYTE_BUILD_FUZZERS "Build libFuzzer targets" OFF)
 option(PREBYTE_ENABLE_COVERAGE "Enable GCC/GCov coverage instrumentation" OFF)
-option(PREBYTE_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(PREBYTE_ENABLE_SANITIZERS "Enable Clang sanitizer instrumentation" OFF)
+set(PREBYTE_SANITIZERS "address,undefined"
+    CACHE STRING "Comma-separated Clang sanitizers: address, undefined, thread, memory")
 
 find_package(Lua REQUIRED)
 
@@ -88,8 +90,41 @@ if(PREBYTE_ENABLE_SANITIZERS)
         message(FATAL_ERROR "PREBYTE_ENABLE_SANITIZERS requires Clang")
     endif()
 
-    set(PREBYTE_SANITIZER_COMPILE_OPTIONS -fsanitize=address,undefined -fno-omit-frame-pointer -g)
-    set(PREBYTE_SANITIZER_LINK_OPTIONS -fsanitize=address,undefined)
+    if(PREBYTE_SANITIZERS STREQUAL "")
+        set(PREBYTE_SANITIZERS "address,undefined")
+    endif()
+
+    string(REPLACE "," ";" PREBYTE_SANITIZER_LIST "${PREBYTE_SANITIZERS}")
+    set(PREBYTE_HAS_ADDRESS_SANITIZER OFF)
+    set(PREBYTE_HAS_THREAD_SANITIZER OFF)
+    set(PREBYTE_HAS_MEMORY_SANITIZER OFF)
+
+    foreach(PREBYTE_SANITIZER IN LISTS PREBYTE_SANITIZER_LIST)
+        string(STRIP "${PREBYTE_SANITIZER}" PREBYTE_SANITIZER)
+        if(PREBYTE_SANITIZER STREQUAL "address")
+            set(PREBYTE_HAS_ADDRESS_SANITIZER ON)
+        elseif(PREBYTE_SANITIZER STREQUAL "thread")
+            set(PREBYTE_HAS_THREAD_SANITIZER ON)
+        elseif(PREBYTE_SANITIZER STREQUAL "memory")
+            set(PREBYTE_HAS_MEMORY_SANITIZER ON)
+        endif()
+    endforeach()
+
+    if(PREBYTE_HAS_THREAD_SANITIZER AND PREBYTE_HAS_MEMORY_SANITIZER)
+        message(FATAL_ERROR "TSan and MSan cannot be combined")
+    endif()
+    if(PREBYTE_HAS_ADDRESS_SANITIZER AND PREBYTE_HAS_THREAD_SANITIZER)
+        message(FATAL_ERROR "ASan and TSan cannot be combined")
+    endif()
+    if(PREBYTE_HAS_ADDRESS_SANITIZER AND PREBYTE_HAS_MEMORY_SANITIZER)
+        message(FATAL_ERROR "ASan and MSan cannot be combined")
+    endif()
+
+    set(PREBYTE_SANITIZER_COMPILE_OPTIONS -fsanitize=${PREBYTE_SANITIZERS} -fno-omit-frame-pointer -g)
+    if(PREBYTE_HAS_MEMORY_SANITIZER)
+        list(APPEND PREBYTE_SANITIZER_COMPILE_OPTIONS -fsanitize-memory-track-origins=1)
+    endif()
+    set(PREBYTE_SANITIZER_LINK_OPTIONS -fsanitize=${PREBYTE_SANITIZERS})
 
     add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:${PREBYTE_SANITIZER_COMPILE_OPTIONS}>")
     add_link_options(${PREBYTE_SANITIZER_LINK_OPTIONS})
@@ -181,12 +216,26 @@ if(PREBYTE_BUILD_FUZZERS)
         fuzz_template_lexer
         fuzz_template_parser
         fuzz_json_parser
+        fuzz_yaml_parser
+        fuzz_toml_parser
+        fuzz_ini_parser
+        fuzz_env_parser
+        fuzz_compiled_template_serializer
+        fuzz_settings_loader
+        fuzz_include_resolver
     )
 
     set(PREBYTE_FUZZ_SOURCES
         tests/fuzz/TemplateLexerFuzz.cpp
         tests/fuzz/TemplateParserFuzz.cpp
         tests/fuzz/JsonParserFuzz.cpp
+        tests/fuzz/YamlParserFuzz.cpp
+        tests/fuzz/TomlParserFuzz.cpp
+        tests/fuzz/IniParserFuzz.cpp
+        tests/fuzz/EnvParserFuzz.cpp
+        tests/fuzz/CompiledTemplateSerializerFuzz.cpp
+        tests/fuzz/SettingsLoaderFuzz.cpp
+        tests/fuzz/IncludeResolverFuzz.cpp
     )
 
     list(LENGTH PREBYTE_FUZZ_TARGETS PREBYTE_FUZZ_TARGET_COUNT)
@@ -203,6 +252,7 @@ if(PREBYTE_BUILD_FUZZERS)
         list(GET PREBYTE_FUZZ_SOURCES ${PREBYTE_FUZZ_INDEX} PREBYTE_FUZZ_SOURCE)
 
         add_executable(${PREBYTE_FUZZ_TARGET} ${PREBYTE_FUZZ_SOURCE})
+        target_include_directories(${PREBYTE_FUZZ_TARGET} PRIVATE tests/fuzz/support)
         target_link_libraries(${PREBYTE_FUZZ_TARGET} PRIVATE prebyte_core)
         target_compile_options(${PREBYTE_FUZZ_TARGET} PRIVATE -fsanitize=fuzzer)
         target_link_options(${PREBYTE_FUZZ_TARGET} PRIVATE -fsanitize=fuzzer)
@@ -220,6 +270,20 @@ if(PREBYTE_BUILD_FUZZERS)
             TIMEOUT 300
         )
     endforeach()
+
+    add_executable(generate_fuzz_pbc_seed tests/fuzz/GeneratePbcSeed.cpp)
+    target_link_libraries(generate_fuzz_pbc_seed PRIVATE prebyte_core)
+
+    set(PREBYTE_FUZZ_PBC_SEED ${CMAKE_SOURCE_DIR}/tests/fuzz/seeds/pbc/minimal.pbc)
+    add_custom_command(
+        OUTPUT ${PREBYTE_FUZZ_PBC_SEED}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/tests/fuzz/seeds/pbc
+        COMMAND generate_fuzz_pbc_seed ${PREBYTE_FUZZ_PBC_SEED}
+        DEPENDS generate_fuzz_pbc_seed
+        VERBATIM
+    )
+    add_custom_target(fuzz_pbc_seed DEPENDS ${PREBYTE_FUZZ_PBC_SEED})
+    add_dependencies(fuzz_compiled_template_serializer fuzz_pbc_seed)
 endif()
 
 if(PREBYTE_BUILD_BENCHMARKS)
