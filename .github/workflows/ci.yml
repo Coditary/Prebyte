@@ -295,6 +295,51 @@ jobs:
           fail_ci_if_error: false
           verbose: true
 
+  clang-tidy:
+    name: clang-tidy-linux-x86_64
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install clang-tidy prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang clang-tidy ninja-build pkg-config
+
+      - name: Bootstrap vcpkg
+        shell: bash
+        run: |
+          set -euo pipefail
+          VCPKG_ROOT="$RUNNER_TEMP/vcpkg"
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
+          "$VCPKG_ROOT/vcpkg" install "lua:x64-linux"
+
+      - name: Run clang-tidy analyze
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/run_clang_tidy.sh
+          ./scripts/ci/run_clang_tidy.sh analyze \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux
+
+      - name: Run clang-tidy lint
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/ci/run_clang_tidy.sh lint
+
+      - name: Run clang-tidy security
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/ci/run_clang_tidy.sh security
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build-test

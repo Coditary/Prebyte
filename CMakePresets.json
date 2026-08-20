@@ -28,6 +28,20 @@
         "PREBYTE_BUILD_BENCHMARKS": "OFF",
         "PREBYTE_ENABLE_COVERAGE": "ON"
       }
+    },
+    {
+      "name": "tidy",
+      "displayName": "Clang-Tidy Ninja",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build-cmake/tidy",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_CXX_SCAN_FOR_MODULES": "OFF",
+        "PREBYTE_BUILD_TESTS": "OFF",
+        "PREBYTE_BUILD_BENCHMARKS": "OFF"
+      }
     }
   ],
   "buildPresets": [
@@ -58,6 +72,11 @@
       "name": "coverage-tests",
       "configurePreset": "coverage",
       "targets": ["prebyte_tests"]
+    },
+    {
+      "name": "tidy-core",
+      "configurePreset": "tidy",
+      "targets": ["prebyte_core"]
     }
   ],
   "testPresets": [
