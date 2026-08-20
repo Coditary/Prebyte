@@ -13,6 +13,89 @@ FUZZ_TARGETS=(
     fuzz_json_parser
 )
 
+seed_dir_for_target() {
+    case "$1" in
+        fuzz_template_lexer|fuzz_template_parser)
+            printf '%s/tests/fuzz/seeds/template\n' "$ROOT"
+            ;;
+        fuzz_json_parser)
+            printf '%s/tests/fuzz/seeds/json\n' "$ROOT"
+            ;;
+        *)
+            printf 'Unknown fuzz target: %s\n' "$1" >&2
+            return 1
+            ;;
+    esac
+}
+
+validate_seed_uniqueness() {
+    local seeds_dir=$1
+    local -A seen_hashes=()
+    local seed_file hash duplicate
+
+    shopt -s nullglob
+    for seed_file in "$seeds_dir"/*; do
+        [[ -f "$seed_file" ]] || continue
+        hash=$(sha1sum "$seed_file" | awk '{print $1}')
+        duplicate="${seen_hashes[$hash]:-}"
+        if [[ -n "$duplicate" ]]; then
+            printf 'Duplicate fuzz seed content:\n  %s\n  %s\n' "$duplicate" "$seed_file" >&2
+            return 1
+        fi
+        seen_hashes[$hash]=$seed_file
+    done
+}
+
+corpus_contains_seed() {
+    local corpus=$1
+    local seed_file=$2
+    local hash entry
+
+    hash=$(sha1sum "$seed_file" | awk '{print $1}')
+    if [[ -f "$corpus/$hash" ]]; then
+        return 0
+    fi
+
+    shopt -s nullglob
+    for entry in "$corpus"/*; do
+        [[ -f "$entry" ]] || continue
+        if cmp -s "$seed_file" "$entry"; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+install_seed_into_corpus() {
+    local seed_file=$1
+    local corpus=$2
+    local hash
+
+    if corpus_contains_seed "$corpus" "$seed_file"; then
+        return 0
+    fi
+
+    hash=$(sha1sum "$seed_file" | awk '{print $1}')
+    cp "$seed_file" "$corpus/$hash"
+}
+
+bootstrap_corpus() {
+    local target=$1
+    local corpus="$ROOT/tests/fuzz/corpus/$target"
+    local seeds_dir
+    seeds_dir=$(seed_dir_for_target "$target")
+
+    mkdir -p "$corpus"
+    validate_seed_uniqueness "$seeds_dir"
+
+    shopt -s nullglob
+    for seed_file in "$seeds_dir"/*; do
+        [[ -f "$seed_file" ]] || continue
+        install_seed_into_corpus "$seed_file" "$corpus"
+    done
+}
+
 if [[ ! -f "$BUILD_DIR/CMakeCache.txt" ]]; then
     cmake --preset "$CMAKE_PRESET" "$@"
 fi
@@ -21,17 +104,6 @@ cmake --build --preset "$BUILD_PRESET" --parallel
 
 export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=1:abort_on_error=1:detect_stack_use_after_return=1}"
 export UBSAN_OPTIONS="${UBSAN_OPTIONS:-print_stacktrace=1:halt_on_error=1}"
-
-bootstrap_corpus() {
-    local target=$1
-    local corpus="$ROOT/tests/fuzz/corpus/$target"
-    local seeds="$ROOT/tests/fuzz/seeds/$target"
-
-    mkdir -p "$corpus"
-    if [[ -d "$seeds" ]]; then
-        cp -n "$seeds/"* "$corpus/" 2>/dev/null || true
-    fi
-}
 
 for target in "${FUZZ_TARGETS[@]}"; do
     bootstrap_corpus "$target"

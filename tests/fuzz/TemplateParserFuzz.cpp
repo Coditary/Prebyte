@@ -11,7 +11,7 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
 
     try {
         prebyte::TemplateLexer lexer(input, "fuzz.txt");
-        prebyte::TemplateParser parser(lexer.lex());
+        prebyte::TemplateParser parser(lexer.lex(), prebyte::TemplateParserOptions{.enable_loops = true});
         (void)parser.parse_document();
     } catch (const prebyte::DiagnosticError&) {
     } catch (const std::exception&) {
