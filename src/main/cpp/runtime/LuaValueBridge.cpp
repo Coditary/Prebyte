@@ -2,6 +2,9 @@
 
 #include "runtime/LuaHeaders.h"
 
+#include <optional>
+#include <string>
+
 #include "runtime/BuiltinRegistry.h"
 
 namespace prebyte {
@@ -73,7 +76,28 @@ bool is_array_like_table(lua_State* state, int index) {
         ++count;
         lua_pop(state, 1);
     }
+    while (lua_gettop(state) > index) {
+        lua_pop(state, 1);
+    }
     return array_like && max_key == count;
+}
+
+std::optional<std::string> table_key_as_string(lua_State* state, int key_index) {
+    key_index = lua_absindex(state, key_index);
+    switch (lua_type(state, key_index)) {
+    case LUA_TSTRING:
+        return std::string(lua_tostring(state, key_index));
+    case LUA_TNUMBER: {
+        const lua_Integer integer_key = lua_tointeger(state, key_index);
+        const lua_Number numeric_key = lua_tonumber(state, key_index);
+        if (numeric_key == static_cast<lua_Number>(integer_key)) {
+            return std::to_string(integer_key);
+        }
+        return std::to_string(numeric_key);
+    }
+    default:
+        return std::nullopt;
+    }
 }
 
 void push_value(lua_State* state, const Value& value) {
@@ -224,15 +248,25 @@ Value LuaValueBridge::read_value(lua_State* state, int index) const {
                 list.push_back(data_from_value(item));
                 lua_pop(state, 1);
             }
+            while (lua_gettop(state) > index) {
+                lua_pop(state, 1);
+            }
             return Value::list(std::move(list));
+        }
+
+        while (lua_gettop(state) > index) {
+            lua_pop(state, 1);
         }
 
         Value::Object object;
         lua_pushnil(state);
         while (lua_next(state, index) != 0) {
-            if (const char* key = lua_tostring(state, -2)) {
-                object[key] = data_from_value(read_value(state, -1));
+            if (const std::optional<std::string> key = table_key_as_string(state, -2)) {
+                object[*key] = data_from_value(read_value(state, -1));
             }
+            lua_pop(state, 1);
+        }
+        while (lua_gettop(state) > index) {
             lua_pop(state, 1);
         }
         return Value::object(std::move(object));
