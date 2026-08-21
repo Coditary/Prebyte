@@ -22,6 +22,8 @@ FUZZ_TARGETS=(
     fuzz_render_pbt
     fuzz_app_runner
     fuzz_batch_render
+    fuzz_structured_import
+    fuzz_lua_sandbox
 )
 
 seed_dir_for_target() {
@@ -67,6 +69,12 @@ seed_dir_for_target() {
             ;;
         fuzz_batch_render)
             printf '%s/tests/fuzz/seeds/batch_render\n' "$ROOT"
+            ;;
+        fuzz_structured_import)
+            printf '%s/tests/fuzz/seeds/structured_import\n' "$ROOT"
+            ;;
+        fuzz_lua_sandbox)
+            printf '%s/tests/fuzz/seeds/lua_sandbox\n' "$ROOT"
             ;;
         *)
             return 1

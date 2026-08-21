@@ -36,6 +36,8 @@ FEATURES: tuple[tuple[str, str], ...] = (
 TARGET_HINTS: dict[str, str] = {
     'fuzz_app_runner': 'app_runner',
     'fuzz_batch_render': 'batch_render',
+    'fuzz_structured_import': 'structured_import',
+    'fuzz_lua_sandbox': 'lua_sandbox',
     'fuzz_render_pbt': 'render_pbt',
     'fuzz_template_lexer': 'template_lexer',
     'fuzz_template_parser': 'template_parser',

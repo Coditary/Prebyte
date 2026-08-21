@@ -142,11 +142,17 @@ if(PREBYTE_BUILD_TESTS)
     add_executable(prebyte_tests
         tests/TestHarness.cpp
         tests/TestMain.cpp
+        tests/support/CliProcess.cpp
         ${TEST_UNIT_SOURCES}
         ${TEST_INTEGRATION_SOURCES}
     )
-    target_include_directories(prebyte_tests PRIVATE tests)
+    target_include_directories(prebyte_tests PRIVATE tests tests/support)
     target_link_libraries(prebyte_tests PRIVATE prebyte_core)
+    target_compile_definitions(prebyte_tests PRIVATE
+        PREBYTE_CLI_BINARY="$<TARGET_FILE:prebyte>"
+        PREBYTE_CLI_WORKDIR="${CMAKE_SOURCE_DIR}"
+    )
+    add_dependencies(prebyte_tests prebyte)
 
     if(PREBYTE_ENABLE_COVERAGE)
         if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
@@ -228,6 +234,8 @@ if(PREBYTE_BUILD_FUZZERS)
         fuzz_render_pbt
         fuzz_app_runner
         fuzz_batch_render
+        fuzz_structured_import
+        fuzz_lua_sandbox
     )
 
     set(PREBYTE_FUZZ_SOURCES
@@ -246,6 +254,8 @@ if(PREBYTE_BUILD_FUZZERS)
         tests/fuzz/RenderPbtFuzz.cpp
         tests/fuzz/AppRunnerFuzz.cpp
         tests/fuzz/BatchRenderFuzz.cpp
+        tests/fuzz/StructuredImportFuzz.cpp
+        tests/fuzz/LuaSandboxFuzz.cpp
     )
 
     list(LENGTH PREBYTE_FUZZ_TARGETS PREBYTE_FUZZ_TARGET_COUNT)
