@@ -8,7 +8,7 @@ dist
 tools/benchmark_compare/target/
 
 # libFuzzer corpus growth (generated during fuzz runs)
-tests/fuzz/corpus/
+tests/fault_tolerance/fuzz/corpus/
 
 # libFuzzer crash/timeout/leak artifacts (repo root or build dir)
 crash-*

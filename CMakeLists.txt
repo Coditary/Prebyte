@@ -136,17 +136,31 @@ install(TARGETS prebyte RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES README.md LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/prebyte)
 
 if(PREBYTE_BUILD_TESTS)
-    file(GLOB TEST_UNIT_SOURCES CONFIGURE_DEPENDS tests/unit/*.cpp)
-    file(GLOB TEST_INTEGRATION_SOURCES CONFIGURE_DEPENDS tests/integration/*.cpp)
+    file(GLOB TEST_CORRECTNESS_UNIT_SOURCES CONFIGURE_DEPENDS tests/correctness/unit/*.cpp)
+    file(GLOB TEST_CORRECTNESS_INTEGRATION_SOURCES CONFIGURE_DEPENDS tests/correctness/integration/*.cpp)
+    file(GLOB TEST_CORRECTNESS_PROPERTY_SOURCES CONFIGURE_DEPENDS tests/correctness/property/*.cpp)
+    file(GLOB TEST_FAULT_TOLERANCE_REGRESSION_SOURCES CONFIGURE_DEPENDS tests/fault_tolerance/regression/*.cpp)
+    file(GLOB TEST_SECURITY_SOURCES CONFIGURE_DEPENDS tests/security/*.cpp)
+    file(GLOB TEST_CONCURRENCY_SOURCES CONFIGURE_DEPENDS tests/concurrency/*.cpp)
+    file(GLOB TEST_PORTABILITY_CLI_SOURCES CONFIGURE_DEPENDS tests/portability/cli/*.cpp)
+
+    set(PREBYTE_TEST_SOURCES
+        ${TEST_CORRECTNESS_UNIT_SOURCES}
+        ${TEST_CORRECTNESS_INTEGRATION_SOURCES}
+        ${TEST_CORRECTNESS_PROPERTY_SOURCES}
+        ${TEST_FAULT_TOLERANCE_REGRESSION_SOURCES}
+        ${TEST_SECURITY_SOURCES}
+        ${TEST_CONCURRENCY_SOURCES}
+        ${TEST_PORTABILITY_CLI_SOURCES}
+    )
 
     add_executable(prebyte_tests
-        tests/TestHarness.cpp
-        tests/TestMain.cpp
+        tests/harness/TestHarness.cpp
+        tests/harness/TestMain.cpp
         tests/support/CliProcess.cpp
-        ${TEST_UNIT_SOURCES}
-        ${TEST_INTEGRATION_SOURCES}
+        ${PREBYTE_TEST_SOURCES}
     )
-    target_include_directories(prebyte_tests PRIVATE tests tests/support)
+    target_include_directories(prebyte_tests PRIVATE tests tests/harness tests/support)
     target_link_libraries(prebyte_tests PRIVATE prebyte_core)
     target_compile_definitions(prebyte_tests PRIVATE
         PREBYTE_CLI_BINARY="$<TARGET_FILE:prebyte>"
@@ -163,10 +177,7 @@ if(PREBYTE_BUILD_TESTS)
 
     enable_testing()
 
-    set(PREBYTE_TEST_DISCOVERY_SOURCES
-        ${TEST_UNIT_SOURCES}
-        ${TEST_INTEGRATION_SOURCES}
-    )
+    set(PREBYTE_TEST_DISCOVERY_SOURCES ${PREBYTE_TEST_SOURCES})
     set(PREBYTE_DISCOVERED_TEST_NAMES)
     set(PREBYTE_DISABLED_TEST_NAMES)
 
@@ -238,24 +249,26 @@ if(PREBYTE_BUILD_FUZZERS)
         fuzz_lua_sandbox
     )
 
+    set(PREBYTE_FUZZ_DIR tests/fault_tolerance/fuzz)
+
     set(PREBYTE_FUZZ_SOURCES
-        tests/fuzz/TemplateLexerFuzz.cpp
-        tests/fuzz/TemplateParserFuzz.cpp
-        tests/fuzz/JsonParserFuzz.cpp
-        tests/fuzz/YamlParserFuzz.cpp
-        tests/fuzz/TomlParserFuzz.cpp
-        tests/fuzz/IniParserFuzz.cpp
-        tests/fuzz/EnvParserFuzz.cpp
-        tests/fuzz/CompiledTemplateSerializerFuzz.cpp
-        tests/fuzz/SettingsLoaderFuzz.cpp
-        tests/fuzz/IncludeResolverFuzz.cpp
-        tests/fuzz/FileParserFuzz.cpp
-        tests/fuzz/LuaChunkFuzz.cpp
-        tests/fuzz/RenderPbtFuzz.cpp
-        tests/fuzz/AppRunnerFuzz.cpp
-        tests/fuzz/BatchRenderFuzz.cpp
-        tests/fuzz/StructuredImportFuzz.cpp
-        tests/fuzz/LuaSandboxFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/TemplateLexerFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/TemplateParserFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/JsonParserFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/YamlParserFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/TomlParserFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/IniParserFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/EnvParserFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/CompiledTemplateSerializerFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/SettingsLoaderFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/IncludeResolverFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/FileParserFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/LuaChunkFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/RenderPbtFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/AppRunnerFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/BatchRenderFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/StructuredImportFuzz.cpp
+        ${PREBYTE_FUZZ_DIR}/LuaSandboxFuzz.cpp
     )
 
     list(LENGTH PREBYTE_FUZZ_TARGETS PREBYTE_FUZZ_TARGET_COUNT)
@@ -272,12 +285,12 @@ if(PREBYTE_BUILD_FUZZERS)
         list(GET PREBYTE_FUZZ_SOURCES ${PREBYTE_FUZZ_INDEX} PREBYTE_FUZZ_SOURCE)
 
         add_executable(${PREBYTE_FUZZ_TARGET} ${PREBYTE_FUZZ_SOURCE})
-        target_include_directories(${PREBYTE_FUZZ_TARGET} PRIVATE tests/fuzz/support)
+        target_include_directories(${PREBYTE_FUZZ_TARGET} PRIVATE ${PREBYTE_FUZZ_DIR}/support)
         target_link_libraries(${PREBYTE_FUZZ_TARGET} PRIVATE prebyte_core)
         target_compile_options(${PREBYTE_FUZZ_TARGET} PRIVATE -fsanitize=fuzzer)
         target_link_options(${PREBYTE_FUZZ_TARGET} PRIVATE -fsanitize=fuzzer)
 
-        set(PREBYTE_FUZZ_CORPUS "${CMAKE_SOURCE_DIR}/tests/fuzz/corpus/${PREBYTE_FUZZ_TARGET}")
+        set(PREBYTE_FUZZ_CORPUS "${CMAKE_SOURCE_DIR}/${PREBYTE_FUZZ_DIR}/corpus/${PREBYTE_FUZZ_TARGET}")
         add_test(
             NAME ${PREBYTE_FUZZ_TARGET}
             COMMAND ${PREBYTE_FUZZ_TARGET}
@@ -291,13 +304,13 @@ if(PREBYTE_BUILD_FUZZERS)
         )
     endforeach()
 
-    add_executable(generate_fuzz_pbc_seed tests/fuzz/GeneratePbcSeed.cpp)
+    add_executable(generate_fuzz_pbc_seed ${PREBYTE_FUZZ_DIR}/GeneratePbcSeed.cpp)
     target_link_libraries(generate_fuzz_pbc_seed PRIVATE prebyte_core)
 
-    set(PREBYTE_FUZZ_PBC_SEED ${CMAKE_SOURCE_DIR}/tests/fuzz/seeds/pbc/minimal.pbc)
+    set(PREBYTE_FUZZ_PBC_SEED ${CMAKE_SOURCE_DIR}/${PREBYTE_FUZZ_DIR}/seeds/pbc/minimal.pbc)
     add_custom_command(
         OUTPUT ${PREBYTE_FUZZ_PBC_SEED}
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/tests/fuzz/seeds/pbc
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/${PREBYTE_FUZZ_DIR}/seeds/pbc
         COMMAND generate_fuzz_pbc_seed ${PREBYTE_FUZZ_PBC_SEED}
         DEPENDS generate_fuzz_pbc_seed
         VERBATIM
@@ -309,7 +322,7 @@ endif()
 if(PREBYTE_BUILD_BENCHMARKS)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-    add_executable(prebyte_benchmarks tests/BenchmarkMain.cpp)
+    add_executable(prebyte_benchmarks tests/performance/BenchmarkMain.cpp)
     target_link_libraries(prebyte_benchmarks PRIVATE prebyte_core)
 
     add_executable(benchmark_compare_prebyte tools/benchmark_compare/bench_prebyte.cpp)

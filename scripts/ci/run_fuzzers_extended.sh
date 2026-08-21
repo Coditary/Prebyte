@@ -29,52 +29,52 @@ FUZZ_TARGETS=(
 seed_dir_for_target() {
     case "$1" in
         fuzz_template_lexer|fuzz_template_parser)
-            printf '%s/tests/fuzz/seeds/template\n' "$ROOT"
+            printf '%s/tests/fault_tolerance/fuzz/seeds/template\n' "$ROOT"
             ;;
         fuzz_json_parser)
-            printf '%s/tests/fuzz/seeds/json\n' "$ROOT"
+            printf '%s/tests/fault_tolerance/fuzz/seeds/json\n' "$ROOT"
             ;;
         fuzz_yaml_parser)
-            printf '%s/tests/fuzz/seeds/yaml\n' "$ROOT"
+            printf '%s/tests/fault_tolerance/fuzz/seeds/yaml\n' "$ROOT"
             ;;
         fuzz_toml_parser)
-            printf '%s/tests/fuzz/seeds/toml\n' "$ROOT"
+            printf '%s/tests/fault_tolerance/fuzz/seeds/toml\n' "$ROOT"
             ;;
         fuzz_ini_parser)
-            printf '%s/tests/fuzz/seeds/ini\n' "$ROOT"
+            printf '%s/tests/fault_tolerance/fuzz/seeds/ini\n' "$ROOT"
             ;;
         fuzz_env_parser)
-            printf '%s/tests/fuzz/seeds/env\n' "$ROOT"
+            printf '%s/tests/fault_tolerance/fuzz/seeds/env\n' "$ROOT"
             ;;
         fuzz_compiled_template_serializer)
-            printf '%s/tests/fuzz/seeds/pbc\n' "$ROOT"
+            printf '%s/tests/fault_tolerance/fuzz/seeds/pbc\n' "$ROOT"
             ;;
         fuzz_settings_loader)
-            printf '%s/tests/fuzz/seeds/settings\n' "$ROOT"
+            printf '%s/tests/fault_tolerance/fuzz/seeds/settings\n' "$ROOT"
             ;;
         fuzz_include_resolver)
-            printf '%s/tests/fuzz/seeds/include\n' "$ROOT"
+            printf '%s/tests/fault_tolerance/fuzz/seeds/include\n' "$ROOT"
             ;;
         fuzz_file_parser)
-            printf '%s/tests/fuzz/seeds/file_parser\n' "$ROOT"
+            printf '%s/tests/fault_tolerance/fuzz/seeds/file_parser\n' "$ROOT"
             ;;
         fuzz_lua_chunk)
-            printf '%s/tests/fuzz/seeds/lua_chunk\n' "$ROOT"
+            printf '%s/tests/fault_tolerance/fuzz/seeds/lua_chunk\n' "$ROOT"
             ;;
         fuzz_render_pbt)
-            printf '%s/tests/fuzz/seeds/render_pbt\n' "$ROOT"
+            printf '%s/tests/fault_tolerance/fuzz/seeds/render_pbt\n' "$ROOT"
             ;;
         fuzz_app_runner)
-            printf '%s/tests/fuzz/seeds/app_runner\n' "$ROOT"
+            printf '%s/tests/fault_tolerance/fuzz/seeds/app_runner\n' "$ROOT"
             ;;
         fuzz_batch_render)
-            printf '%s/tests/fuzz/seeds/batch_render\n' "$ROOT"
+            printf '%s/tests/fault_tolerance/fuzz/seeds/batch_render\n' "$ROOT"
             ;;
         fuzz_structured_import)
-            printf '%s/tests/fuzz/seeds/structured_import\n' "$ROOT"
+            printf '%s/tests/fault_tolerance/fuzz/seeds/structured_import\n' "$ROOT"
             ;;
         fuzz_lua_sandbox)
-            printf '%s/tests/fuzz/seeds/lua_sandbox\n' "$ROOT"
+            printf '%s/tests/fault_tolerance/fuzz/seeds/lua_sandbox\n' "$ROOT"
             ;;
         *)
             return 1
@@ -150,7 +150,7 @@ source "$ROOT/scripts/ci/fuzz_seed_guard.sh"
 
 bootstrap_corpus() {
     local target=$1
-    local corpus="$ROOT/tests/fuzz/corpus/$target"
+    local corpus="$ROOT/tests/fault_tolerance/fuzz/corpus/$target"
     local seeds_dir
     seeds_dir=$(seed_dir_for_target "$target")
 
@@ -175,7 +175,7 @@ failures=0
 
 for target in "${FUZZ_TARGETS[@]}"; do
     bootstrap_corpus "$target"
-    corpus="$ROOT/tests/fuzz/corpus/$target"
+    corpus="$ROOT/tests/fault_tolerance/fuzz/corpus/$target"
     {
         printf '\n========== %s (%ss) ==========\n' "$target" "$MAX_TOTAL_TIME"
         "$BUILD_DIR/$target" \

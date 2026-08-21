@@ -164,7 +164,7 @@ void append_section(std::vector<std::string>& lines, const std::string& title, c
 }
 
 int main() {
-    const std::filesystem::path history_path = "tests/benchmarks/history.md";
+    const std::filesystem::path history_path = "tests/performance/history.md";
     std::filesystem::create_directories(history_path.parent_path());
 
     const auto now = std::chrono::system_clock::now();
