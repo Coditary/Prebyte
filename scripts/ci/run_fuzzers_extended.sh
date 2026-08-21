@@ -17,6 +17,11 @@ FUZZ_TARGETS=(
     fuzz_compiled_template_serializer
     fuzz_settings_loader
     fuzz_include_resolver
+    fuzz_file_parser
+    fuzz_lua_chunk
+    fuzz_render_pbt
+    fuzz_app_runner
+    fuzz_batch_render
 )
 
 seed_dir_for_target() {
@@ -47,6 +52,21 @@ seed_dir_for_target() {
             ;;
         fuzz_include_resolver)
             printf '%s/tests/fuzz/seeds/include\n' "$ROOT"
+            ;;
+        fuzz_file_parser)
+            printf '%s/tests/fuzz/seeds/file_parser\n' "$ROOT"
+            ;;
+        fuzz_lua_chunk)
+            printf '%s/tests/fuzz/seeds/lua_chunk\n' "$ROOT"
+            ;;
+        fuzz_render_pbt)
+            printf '%s/tests/fuzz/seeds/render_pbt\n' "$ROOT"
+            ;;
+        fuzz_app_runner)
+            printf '%s/tests/fuzz/seeds/app_runner\n' "$ROOT"
+            ;;
+        fuzz_batch_render)
+            printf '%s/tests/fuzz/seeds/batch_render\n' "$ROOT"
             ;;
         *)
             return 1
@@ -96,15 +116,29 @@ corpus_contains_seed() {
 install_seed_into_corpus() {
     local seed_file=$1
     local corpus=$2
-    local hash
+    local hash basename target
 
     if corpus_contains_seed "$corpus" "$seed_file"; then
         return 0
     fi
 
     hash=$(sha1sum "$seed_file" | awk '{print $1}')
-    cp "$seed_file" "$corpus/$hash"
+    basename=$(basename "$seed_file")
+    if [[ "$basename" =~ ^[0-9a-f]{40}$ ]]; then
+        target=$(python3 "$ROOT/scripts/ci/name_fuzz_corpus_entry.py" --print-name "$seed_file")
+    else
+        target="$basename"
+    fi
+
+    if [[ -f "$corpus/$target" ]] && ! cmp -s "$seed_file" "$corpus/$target"; then
+        target="${target}_${hash:0:8}"
+    fi
+
+    cp "$seed_file" "$corpus/$target"
 }
+
+# shellcheck source=scripts/ci/fuzz_seed_guard.sh
+source "$ROOT/scripts/ci/fuzz_seed_guard.sh"
 
 bootstrap_corpus() {
     local target=$1
@@ -113,6 +147,7 @@ bootstrap_corpus() {
     seeds_dir=$(seed_dir_for_target "$target")
 
     mkdir -p "$corpus"
+    relocate_generated_seed_artifacts "$seeds_dir" "$corpus"
     validate_seed_uniqueness "$seeds_dir"
 
     shopt -s nullglob
@@ -120,6 +155,8 @@ bootstrap_corpus() {
         [[ -f "$seed_file" ]] || continue
         install_seed_into_corpus "$seed_file" "$corpus"
     done
+
+    rename_fuzz_corpus_entries "$corpus"
 }
 
 export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=1:abort_on_error=1:detect_stack_use_after_return=1}"
@@ -138,6 +175,7 @@ for target in "${FUZZ_TARGETS[@]}"; do
             -close_fd_mask=3 \
             "$corpus"
         status=$?
+        rename_fuzz_corpus_entries "$corpus"
         if [[ $status -ne 0 ]]; then
             printf 'FAILED: %s (exit %s)\n' "$target" "$status"
             failures=$((failures + 1))

@@ -223,6 +223,11 @@ if(PREBYTE_BUILD_FUZZERS)
         fuzz_compiled_template_serializer
         fuzz_settings_loader
         fuzz_include_resolver
+        fuzz_file_parser
+        fuzz_lua_chunk
+        fuzz_render_pbt
+        fuzz_app_runner
+        fuzz_batch_render
     )
 
     set(PREBYTE_FUZZ_SOURCES
@@ -236,6 +241,11 @@ if(PREBYTE_BUILD_FUZZERS)
         tests/fuzz/CompiledTemplateSerializerFuzz.cpp
         tests/fuzz/SettingsLoaderFuzz.cpp
         tests/fuzz/IncludeResolverFuzz.cpp
+        tests/fuzz/FileParserFuzz.cpp
+        tests/fuzz/LuaChunkFuzz.cpp
+        tests/fuzz/RenderPbtFuzz.cpp
+        tests/fuzz/AppRunnerFuzz.cpp
+        tests/fuzz/BatchRenderFuzz.cpp
     )
 
     list(LENGTH PREBYTE_FUZZ_TARGETS PREBYTE_FUZZ_TARGET_COUNT)

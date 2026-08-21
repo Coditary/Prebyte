@@ -6,5 +6,13 @@ dist
 *.pbc
 *.gcov.json.gz
 tools/benchmark_compare/target/
+
+# libFuzzer corpus growth (generated during fuzz runs)
 tests/fuzz/corpus/
+
+# libFuzzer crash/timeout/leak artifacts (repo root or build dir)
 crash-*
+slow-unit-*
+timeout-*
+leak-*
+oom-*
