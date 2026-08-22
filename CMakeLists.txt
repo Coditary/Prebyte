@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.31)
 
-project(Prebyte VERSION 1.1.0 LANGUAGES CXX)
+project(Prebyte VERSION 1.1.1 LANGUAGES CXX)
+
+set(PREBYTE_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+configure_file(
+    src/main/include/support/Version.h.in
+    "${PREBYTE_GENERATED_INCLUDE_DIR}/support/Version.h"
+    @ONLY
+)
 
 include(CTest)
 
@@ -69,6 +76,7 @@ set(PREBYTE_CORE_SOURCES
 add_library(prebyte_core STATIC ${PREBYTE_CORE_SOURCES})
 target_include_directories(prebyte_core
     PUBLIC
+        "${PREBYTE_GENERATED_INCLUDE_DIR}"
         src/main/include
         ${LUA_INCLUDE_DIR}
 )
