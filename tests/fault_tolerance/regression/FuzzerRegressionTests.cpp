@@ -169,12 +169,13 @@ TEST_CASE(FuzzerRegression_include_resolver_rejects_overlong_and_overdeep_paths)
 
     prebyte::IncludeResolver resolver;
     prebyte::RenderSession session;
+    session.include_anchor_root = root / "nested";
     prebyte::EffectiveSettings settings;
     settings.allow_includes = true;
     settings.include_paths.push_back(root);
 
     const std::string long_path(5000, 'a');
-    expect_diagnostic_message([&] { (void)resolver.load(long_path, root / "main.txt", settings, session); },
+    expect_diagnostic_message([&] { (void)resolver.load(long_path, root / "nested" / "main.txt", settings, session); },
                               "Include path is too long");
 
     std::string deep_path;
@@ -182,8 +183,27 @@ TEST_CASE(FuzzerRegression_include_resolver_rejects_overlong_and_overdeep_paths)
         deep_path += "../";
     }
     deep_path += "main.txt";
-    expect_diagnostic_message([&] { (void)resolver.load(deep_path, root / "main.txt", settings, session); },
+    expect_diagnostic_message([&] { (void)resolver.load(deep_path, root / "nested" / "main.txt", settings, session); },
                               "Include path is too deep");
+}
+
+TEST_CASE(FuzzerRegression_include_resolver_rejects_traversal_outside_allowed_roots) {
+    const std::filesystem::path root = resolver_test_root("include-traversal");
+    const std::filesystem::path outside = root.parent_path() / (root.filename().string() + "-outside");
+    write_file(outside / "secret.txt", "LEAKED\n");
+    write_file(root / "nested" / "main.txt",
+               "{{ include \"../../" + (root.filename().string() + "-outside") + "/secret.txt\" }}");
+
+    prebyte::IncludeResolver resolver;
+    prebyte::RenderSession session;
+    session.include_anchor_root = root / "nested";
+    prebyte::EffectiveSettings settings;
+    settings.allow_includes = true;
+
+    expect_diagnostic_message(
+        [&] { (void)resolver.load("../../" + (root.filename().string() + "-outside") + "/secret.txt",
+                                  root / "nested" / "main.txt", settings, session); },
+        "escapes allowed roots");
 }
 
 TEST_CASE(FuzzerRegression_file_metadata_cache_treats_empty_path_as_missing) {

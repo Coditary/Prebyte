@@ -129,7 +129,7 @@ void push_value(lua_State* state, const Value& value) {
         lua_newtable(state);
         for (std::size_t index = 0; index < list->size(); ++index) {
             push_value(state, Value::borrowed_data((*list)[index]));
-            lua_rawseti(state, -2, static_cast<lua_Integer>(index + 1));
+            lua_rawseti(state, -2, static_cast<lua_Integer>(index) + 1);
         }
         return;
     }
@@ -159,7 +159,7 @@ void push_loop_frame_scalars(lua_State* state, const RenderSession::LoopFrame& f
     }
 
     lua_newtable(state);
-    lua_pushinteger(state, static_cast<lua_Integer>(frame.loop_index0 + 1));
+    lua_pushinteger(state, static_cast<lua_Integer>(frame.loop_index0) + 1);
     lua_setfield(state, -2, "index");
     lua_pushinteger(state, static_cast<lua_Integer>(frame.loop_index0));
     lua_setfield(state, -2, "index0");
@@ -240,7 +240,7 @@ Value LuaValueBridge::read_value(lua_State* state, int index) const {
         index = lua_absindex(state, index);
         if (is_array_like_table(state, index)) {
             Value::List list;
-            const lua_Integer size = lua_rawlen(state, index);
+            const lua_Unsigned size = lua_rawlen(state, index);
             list.reserve(static_cast<std::size_t>(size));
             for (lua_Integer item_index = 1; item_index <= size; ++item_index) {
                 lua_rawgeti(state, index, item_index);

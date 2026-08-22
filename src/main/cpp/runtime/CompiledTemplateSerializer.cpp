@@ -244,15 +244,13 @@ const CompiledProgram* CompiledTemplateSerializer::try_load_valid(const std::fil
             }
 
             const FileMetadata cached_metadata = FileMetadataCache::instance().probe(path);
-            if (!cached_metadata.exists
-                || cached_metadata.mtime_ticks != CompiledTemplateCache::instance().compiled_mtime(path, settings)) {
-                CompiledTemplateCache::instance().erase(path, settings);
-            } else if (is_fresh(*cached, settings)) {
+            if (cached_metadata.exists
+                && cached_metadata.mtime_ticks == CompiledTemplateCache::instance().compiled_mtime(path, settings)
+                && is_fresh(*cached, settings)) {
                 CompiledTemplateCache::instance().mark_validated(path, settings);
                 return cached;
-            } else {
-                CompiledTemplateCache::instance().erase(path, settings);
             }
+            CompiledTemplateCache::instance().erase(path, settings);
         }
 
         const FileMetadata metadata = FileMetadataCache::instance().probe(path);

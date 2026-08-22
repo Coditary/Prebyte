@@ -1,8 +1,8 @@
 #include "parser/JsonParser.h"
 
 #include "support/Diagnostic.h"
+#include "support/FileUtil.h"
 
-#include <fstream>
 #include <iterator>
 
 namespace prebyte {
@@ -201,18 +201,10 @@ private:
     std::size_t index_ = 0;
 };
 
-std::string read_file(const std::filesystem::path& path) {
-    std::ifstream stream(path);
-    if (!stream) {
-        throw std::runtime_error("Could not open JSON file: " + path.string());
-    }
-    return std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
-}
-
 }
 
 Data JsonParser::parse(const std::filesystem::path& filepath) {
-    return parse_string(read_file(filepath));
+    return parse_string(file_util::read_text_file(filepath));
 }
 
 bool JsonParser::can_parse(const std::filesystem::path& filepath) const {

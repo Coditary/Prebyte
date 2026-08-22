@@ -41,7 +41,9 @@ LuaRuntime::LuaRuntime() {
 
 LuaRuntime::~LuaRuntime() {
     if (state_ != nullptr) {
+        chunk_cache_.clear();
         lua_close(state_);
+        state_ = nullptr;
     }
 }
 
@@ -103,6 +105,51 @@ void LuaRuntime::handle_instruction_guard(lua_State* state) const {
     }
 }
 
+void* LuaRuntime::lua_allocator(void* user_data, void* pointer, std::size_t old_size, std::size_t new_size) {
+    auto* runtime = static_cast<LuaRuntime*>(user_data);
+    const std::size_t limit = runtime->memory_limit_bytes_;
+
+    if (new_size == 0) {
+        if (pointer != nullptr) {
+            std::free(pointer);
+            if (runtime->memory_bytes_in_use_ >= old_size) {
+                runtime->memory_bytes_in_use_ -= old_size;
+            } else {
+                runtime->memory_bytes_in_use_ = 0;
+            }
+        }
+        return nullptr;
+    }
+
+    const std::size_t growth = pointer == nullptr ? new_size : (new_size > old_size ? new_size - old_size : 0);
+    if (growth > 0 && limit != std::numeric_limits<std::size_t>::max()) {
+        if (growth > limit || runtime->memory_bytes_in_use_ > limit - growth) {
+            runtime->memory_limit_exceeded_ = true;
+            return nullptr;
+        }
+    }
+
+    void* updated_pointer = pointer == nullptr ? std::malloc(new_size) : std::realloc(pointer, new_size);
+    if (updated_pointer == nullptr) {
+        runtime->memory_limit_exceeded_ = true;
+        return nullptr;
+    }
+
+    if (pointer == nullptr) {
+        runtime->memory_bytes_in_use_ += new_size;
+    } else if (new_size > old_size) {
+        runtime->memory_bytes_in_use_ += new_size - old_size;
+    } else if (new_size < old_size) {
+        if (runtime->memory_bytes_in_use_ >= old_size - new_size) {
+            runtime->memory_bytes_in_use_ -= old_size - new_size;
+        } else {
+            runtime->memory_bytes_in_use_ = 0;
+        }
+    }
+
+    return updated_pointer;
+}
+
 int LuaRuntime::load_chunk(const std::string& source, LuaChunkMode mode, const SourceSpan& span,
                            RenderSession& session) const {
     const LuaChunkKey key{source, mode};
@@ -126,54 +173,8 @@ int LuaRuntime::load_chunk(const std::string& source, LuaChunkMode mode, const S
 }
 
 std::string LuaRuntime::wrap_source(const std::string& source, LuaChunkMode mode) const {
-    switch (mode) {
-    case LuaChunkMode::InlineValue:
-    case LuaChunkMode::Predicate:
-        return source;
-    case LuaChunkMode::BlockValue:
-        return source;
-    }
+    (void)mode;
     return source;
-}
-
-void* LuaRuntime::lua_allocator(void* user_data, void* pointer, std::size_t old_size, std::size_t new_size) {
-    auto* runtime = static_cast<LuaRuntime*>(user_data);
-    const std::size_t limit = runtime->memory_limit_bytes_;
-
-    if (new_size == 0) {
-        if (runtime->memory_bytes_in_use_ >= old_size) {
-            runtime->memory_bytes_in_use_ -= old_size;
-        } else {
-            runtime->memory_bytes_in_use_ = 0;
-        }
-        std::free(pointer);
-        return nullptr;
-    }
-
-    const std::size_t growth = pointer == nullptr ? new_size : (new_size > old_size ? new_size - old_size : 0);
-    if (growth > 0) {
-        if (growth > limit || runtime->memory_bytes_in_use_ > limit - growth) {
-            runtime->memory_limit_exceeded_ = true;
-            return nullptr;
-        }
-    }
-
-    void* updated_pointer = pointer == nullptr ? std::malloc(new_size) : std::realloc(pointer, new_size);
-    if (updated_pointer == nullptr) {
-        return nullptr;
-    }
-
-    if (pointer == nullptr) {
-        runtime->memory_bytes_in_use_ += new_size;
-    } else if (new_size > old_size) {
-        runtime->memory_bytes_in_use_ += new_size - old_size;
-    } else if (runtime->memory_bytes_in_use_ >= old_size - new_size) {
-        runtime->memory_bytes_in_use_ -= old_size - new_size;
-    } else {
-        runtime->memory_bytes_in_use_ = 0;
-    }
-
-    return updated_pointer;
 }
 
 std::string LuaRuntime::take_error_message(lua_State* state) const {

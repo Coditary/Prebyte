@@ -128,6 +128,7 @@ struct RenderSession {
     std::vector<LoopFrame> loop_frames;
     std::vector<std::filesystem::path> include_stack;
     std::unordered_set<std::filesystem::path> include_stack_set;
+    std::optional<std::filesystem::path> include_anchor_root;
     std::chrono::steady_clock::time_point start_time;
     mutable std::optional<BuiltinSnapshot> builtin_snapshot;
     mutable std::shared_ptr<class LuaRuntime> lua_runtime;
@@ -149,6 +150,7 @@ struct RenderSession {
         loop_frames.clear();
         include_stack.clear();
         include_stack_set.clear();
+        include_anchor_root.reset();
         builtin_snapshot.reset();
         function_call_depth = 0;
         output_bytes_emitted = 0;

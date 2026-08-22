@@ -14,4 +14,8 @@ void LuaChunkCache::store(const LuaChunkKey& key, int registry_reference) {
     cache_[key] = registry_reference;
 }
 
+void LuaChunkCache::clear() {
+    cache_.clear();
+}
+
 }

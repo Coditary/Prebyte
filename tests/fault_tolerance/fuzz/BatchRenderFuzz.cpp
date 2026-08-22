@@ -1,6 +1,6 @@
 #include "app/BatchProcessor.h"
 #include "app/Command.h"
-#include "runtime/FileMetadataCache.h"
+#include "support/FuzzRuntimeReset.h"
 #include "support/Diagnostic.h"
 #include "support/FuzzTempDir.h"
 
@@ -169,7 +169,7 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
     }
 
     FuzzedDataProvider provider(data, size);
-    prebyte::FileMetadataCache::instance().clear();
+    fuzz_reset_runtime_state();
 
     const OutputRoute output_route = pick_output_route(provider);
     const bool use_pbt_extension = provider.ConsumeBool();

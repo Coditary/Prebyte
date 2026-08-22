@@ -8,7 +8,7 @@ Tests are grouped by non-functional requirement (NFR). Shared assets live in `fi
 | Fault tolerance | `fault_tolerance/` | Fuzzers, fuzz regressions, sanitizer guidance |
 | Security | `security/` | Sandbox and hardening end-to-end tests |
 | Concurrency | `concurrency/` | Parallel render and cache stability tests |
-| Portability | `portability/` | Real CLI subprocess tests across the built binary |
+| Portability | `portability/` | CLI subprocess tests and packaging smoke tests |
 | Performance | `performance/` | Benchmark driver and timing history |
 
 ## Running
@@ -17,11 +17,18 @@ Tests are grouped by non-functional requirement (NFR). Shared assets live in `fi
 cmake --build --preset coverage --target prebyte_tests prebyte
 ctest --preset coverage
 make coverage      # correctness + coverage gate
+make test          # fast dev test run
+make               # full local validation (same as make all)
+make all           # full local validation
+make start         # build CLI only
 make sanitize      # ASan/UBSan over the full test binary
 make tsan          # ThreadSanitizer
 make msan          # MemorySanitizer
 make fuzz          # libFuzzer targets under fault_tolerance/fuzz/
 make benchmark     # performance/BenchmarkMain.cpp
+make packaging-smoke
 ```
+
+Packaging smoke (binary tarball, ReqPack, optional Docker): `make packaging-smoke`, `make packaging-smoke-docker`.
 
 Fixtures for templates, settings, and batch data: `tests/fixtures/`.

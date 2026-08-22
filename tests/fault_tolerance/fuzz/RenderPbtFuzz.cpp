@@ -3,7 +3,7 @@
 #include "datatypes/Data.h"
 #include "runtime/BuiltinRegistry.h"
 #include "runtime/ExpressionEvaluator.h"
-#include "runtime/FileMetadataCache.h"
+#include "support/FuzzRuntimeReset.h"
 #include "runtime/IncludeResolver.h"
 #include "runtime/Renderer.h"
 #include "support/Diagnostic.h"
@@ -83,7 +83,7 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
     }
 
     FuzzedDataProvider provider(data, size);
-    prebyte::FileMetadataCache::instance().clear();
+    fuzz_reset_runtime_state();
 
     const prebyte::EffectiveSettings settings = make_settings(provider);
     const bool seed_session_data = provider.ConsumeBool();

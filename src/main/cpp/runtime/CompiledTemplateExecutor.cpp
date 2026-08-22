@@ -369,7 +369,7 @@ void ensure_scalar_operand(const Value& value, const std::filesystem::path& curr
 
 bool contains_value(const Value& right, const Value& left) {
     if (const auto string_value = right.try_as_string_view()) {
-        return string_value->find(left.to_string()) != std::string_view::npos;
+        return string_value->contains(left.to_string());
     }
     if (const Value::Object* object = right.try_as_object()) {
         return object->contains(left.to_string());
@@ -399,8 +399,8 @@ bool compare_with_order(std::strong_ordering ordering, std::string_view op_name)
     return ordering == std::strong_ordering::greater || ordering == std::strong_ordering::equal;
 }
 
-const std::filesystem::path& function_file_for(const RenderSession::FunctionDefinition& function,
-                                               const std::filesystem::path& fallback) {
+std::filesystem::path function_file_for(const RenderSession::FunctionDefinition& function,
+                                        const std::filesystem::path& fallback) {
     if (!function.definition_file.empty()) {
         return function.definition_file;
     }
@@ -658,7 +658,7 @@ bool CompiledTemplateExecutor::evaluate_condition_bool(const CompiledProgram& pr
         case ExpressionOpcode::LoadVar:
         case ExpressionOpcode::LoadBuiltin: {
             const std::string_view name = data_view(program, cond.data_offset, cond.data_length);
-            if (cond.opcode == ExpressionOpcode::LoadVar && name != "ARGS" && name.find('.') == std::string_view::npos
+            if (cond.opcode == ExpressionOpcode::LoadVar && name != "ARGS" && !name.contains('.')
                 && can_fast_path_variable_lookup(settings, session)) {
                 if (const Value* value = session.lookup_scoped_value(name, true)) {
                     return value->to_bool();
@@ -668,7 +668,7 @@ bool CompiledTemplateExecutor::evaluate_condition_bool(const CompiledProgram& pr
                 }
                 return false;
             }
-            if (cond.opcode == ExpressionOpcode::LoadVar && name.find('.') != std::string_view::npos) {
+            if (cond.opcode == ExpressionOpcode::LoadVar && name.contains('.')) {
                 if (const auto fast_value = try_fast_loop_lookup(name, settings.case_sensitive_variables, session)) {
                     return fast_value->to_bool();
                 }
@@ -695,7 +695,7 @@ Value CompiledTemplateExecutor::evaluate_expression(const CompiledProgram& progr
         case ExpressionOpcode::LoadVar:
         case ExpressionOpcode::LoadBuiltin: {
             const std::string_view name = data_view(program, op.data_offset, op.data_length);
-            if (op.opcode == ExpressionOpcode::LoadVar && name != "ARGS" && name.find('.') == std::string_view::npos
+            if (op.opcode == ExpressionOpcode::LoadVar && name != "ARGS" && !name.contains('.')
                 && can_fast_path_variable_lookup(settings, session)) {
                 if (const Value* value = session.lookup_scoped_value(name, true)) {
                     if (const auto string_value = value->try_as_string_view()) {
@@ -711,7 +711,7 @@ Value CompiledTemplateExecutor::evaluate_expression(const CompiledProgram& progr
                 }
                 return Value();
             }
-            if (op.opcode == ExpressionOpcode::LoadVar && name.find('.') != std::string_view::npos) {
+            if (op.opcode == ExpressionOpcode::LoadVar && name.contains('.')) {
                 if (const auto fast_value = try_fast_loop_lookup(name, settings.case_sensitive_variables, session)) {
                     return *fast_value;
                 }
@@ -787,7 +787,7 @@ Value CompiledTemplateExecutor::evaluate_expression(const CompiledProgram& progr
         case ExpressionOpcode::LoadVar:
         case ExpressionOpcode::LoadBuiltin: {
             const std::string_view name = data_view(program, op.data_offset, op.data_length);
-            if (op.opcode == ExpressionOpcode::LoadVar && name != "ARGS" && name.find('.') == std::string_view::npos
+            if (op.opcode == ExpressionOpcode::LoadVar && name != "ARGS" && !name.contains('.')
                 && can_fast_path_variable_lookup(settings, session)) {
                 if (const Value* value = session.lookup_scoped_value(name, true)) {
                     if (const auto string_value = value->try_as_string_view()) {
@@ -804,7 +804,7 @@ Value CompiledTemplateExecutor::evaluate_expression(const CompiledProgram& progr
                 } else {
                     stack.push_back(Value());
                 }
-            } else if (op.opcode == ExpressionOpcode::LoadVar && name.find('.') != std::string_view::npos) {
+            } else if (op.opcode == ExpressionOpcode::LoadVar && name.contains('.')) {
                 if (const auto fast_value = try_fast_loop_lookup(name, settings.case_sensitive_variables, session)) {
                     stack.push_back(*fast_value);
                 } else {
@@ -1020,8 +1020,8 @@ Value CompiledTemplateExecutor::call_function(const RenderSession::FunctionDefin
                                               const EffectiveSettings& settings,
                                               const std::filesystem::path& current_file,
                                               RenderSession& session) const {
-    const RenderSession::FunctionDefinition active_function = function;
-    const std::filesystem::path& function_file = function_file_for(active_function, current_file);
+    const RenderSession::FunctionDefinition& active_function = function;
+    const std::filesystem::path function_file = function_file_for(active_function, current_file);
     ensure_render_time_budget(settings, function_file, session);
     if (active_function.parameters.size() != arguments.size()) {
         throw DiagnosticError(make_runtime_error(

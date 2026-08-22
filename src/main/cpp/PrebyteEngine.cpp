@@ -237,6 +237,7 @@ struct Prebyte::PreparedState {
         const EffectiveSettings& effective_settings = settings_for(path);
 
         prepare_render_session();
+        render_session.include_anchor_root = path.parent_path();
 
         CompiledTemplateSerializer serializer;
         if (path.extension() == ".pbc") {

@@ -141,7 +141,7 @@ RenderSession::BuiltinSnapshot make_snapshot() {
 
 const RenderSession::BuiltinSnapshot& snapshot_for(const RenderSession& session) {
     if (!session.builtin_snapshot.has_value()) {
-        const_cast<RenderSession&>(session).builtin_snapshot = make_snapshot();
+        session.builtin_snapshot = make_snapshot();
     }
     return *session.builtin_snapshot;
 }

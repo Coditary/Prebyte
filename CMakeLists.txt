@@ -143,6 +143,7 @@ if(PREBYTE_BUILD_TESTS)
     file(GLOB TEST_SECURITY_SOURCES CONFIGURE_DEPENDS tests/security/*.cpp)
     file(GLOB TEST_CONCURRENCY_SOURCES CONFIGURE_DEPENDS tests/concurrency/*.cpp)
     file(GLOB TEST_PORTABILITY_CLI_SOURCES CONFIGURE_DEPENDS tests/portability/cli/*.cpp)
+    file(GLOB TEST_PORTABILITY_PACKAGING_SOURCES CONFIGURE_DEPENDS tests/portability/packaging/*.cpp)
 
     set(PREBYTE_TEST_SOURCES
         ${TEST_CORRECTNESS_UNIT_SOURCES}
@@ -152,6 +153,7 @@ if(PREBYTE_BUILD_TESTS)
         ${TEST_SECURITY_SOURCES}
         ${TEST_CONCURRENCY_SOURCES}
         ${TEST_PORTABILITY_CLI_SOURCES}
+        ${TEST_PORTABILITY_PACKAGING_SOURCES}
     )
 
     add_executable(prebyte_tests
@@ -317,6 +319,14 @@ if(PREBYTE_BUILD_FUZZERS)
     )
     add_custom_target(fuzz_pbc_seed DEPENDS ${PREBYTE_FUZZ_PBC_SEED})
     add_dependencies(fuzz_compiled_template_serializer fuzz_pbc_seed)
+
+    add_custom_target(fuzz_regression
+        COMMAND ${CMAKE_COMMAND} -E env FUZZ_BUILD_DIR=${CMAKE_BINARY_DIR}
+            ${CMAKE_SOURCE_DIR}/scripts/ci/run_fuzz_regression.sh
+        DEPENDS ${PREBYTE_FUZZ_TARGETS}
+        USES_TERMINAL
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
 endif()
 
 if(PREBYTE_BUILD_BENCHMARKS)

@@ -1,0 +1,10 @@
+# Maximum allowed render time per benchmark case (microseconds).
+# CI fails when a case exceeds its limit. Update after intentional perf work.
+
+simple-variable=500000
+if-include=800000
+profile-merge=800000
+lua-inline=900000
+lua-repeated=1200000
+lua-condition=900000
+batch-variable=3000000

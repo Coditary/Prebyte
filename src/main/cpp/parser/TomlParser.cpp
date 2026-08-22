@@ -1,10 +1,9 @@
 #include "parser/TomlParser.h"
 
+#include "support/FileUtil.h"
 #include "support/TextUtil.h"
 
 #include <cctype>
-#include <fstream>
-#include <iterator>
 #include <sstream>
 
 namespace prebyte {
@@ -117,18 +116,10 @@ std::string strip_comment(const std::string& line) {
     return result;
 }
 
-std::string read_file(const std::filesystem::path& path) {
-    std::ifstream stream(path);
-    if (!stream) {
-        throw std::runtime_error("Could not open TOML file: " + path.string());
-    }
-    return std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
-}
-
 }
 
 Data TomlParser::parse(const std::filesystem::path& filepath) {
-    return parse_string(read_file(filepath));
+    return parse_string(file_util::read_text_file(filepath));
 }
 
 bool TomlParser::can_parse(const std::filesystem::path& filepath) const {

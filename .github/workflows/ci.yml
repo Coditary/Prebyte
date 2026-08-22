@@ -176,11 +176,33 @@ jobs:
           set -euo pipefail
           ctest --test-dir build --output-on-failure
 
+      - name: Packaging smoke (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/smoke_packaging.py
+          python3 scripts/ci/smoke_packaging.py \
+            --binary build/prebyte \
+            --platform "${{ matrix.platform }}" \
+            --arch "${{ matrix.arch }}" \
+            --checks binary reqpack index
+
       - name: Test (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           ctest --test-dir build --output-on-failure
+
+      - name: Packaging smoke (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python scripts/ci/smoke_packaging.py `
+            --binary build/prebyte.exe `
+            --platform windows `
+            --arch ${{ matrix.arch }} `
+            --checks binary
 
       - name: Package release artifact (Unix)
         if: startsWith(github.ref, 'refs/tags/v') && runner.os != 'Windows'
@@ -550,6 +572,15 @@ jobs:
           set -euo pipefail
           docker buildx create --name prebyte-builder --use
           docker buildx inspect --bootstrap
+
+      - name: Docker packaging smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/smoke_packaging.py
+          python3 scripts/ci/smoke_packaging.py \
+            --checks docker \
+            --version "${{ steps.meta.outputs.version }}"
 
       - name: Build and push Docker image
         shell: bash

@@ -1,4 +1,4 @@
-.PHONY: all start run test coverage analyze lint security static-analysis sanitize tsan msan fuzz benchmark compare-benchmark configure reqpack reqpack-index clean
+.PHONY: all start run test coverage analyze lint security static-analysis sanitize tsan msan fuzz fuzz-regression benchmark benchmark-gate compare-benchmark packaging-smoke packaging-smoke-docker ci-full ci-fast configure reqpack reqpack-index clean
 
 CMAKE_PRESET ?= dev
 CMAKE_BUILD_DIR := build-cmake/dev
@@ -11,7 +11,15 @@ COMPARE_DIR := tools/benchmark_compare
 PREBYTE_VERSION ?= $(shell python3 -c 'import pathlib,re; text = pathlib.Path("CMakeLists.txt").read_text(encoding="utf-8"); match = re.search(r"project\([^\n]*VERSION\s+([^\s)]+)", text); print(match.group(1) if match else "0.0.0")')
 REQPACK_OUTPUT_DIR ?= dist
 
-all: start
+all: ci-full
+
+ci-full:
+	chmod +x scripts/ci/run_all_checks.sh
+	./scripts/ci/run_all_checks.sh
+
+ci-fast:
+	chmod +x scripts/ci/run_all_checks.sh
+	PREBYTE_SKIP_FUZZ=1 ./scripts/ci/run_all_checks.sh
 
 configure:
 	@if [ -f "$(CMAKE_CACHE)" ]; then \
@@ -65,7 +73,11 @@ msan:
 fuzz:
 	PREBYTE_FUZZ_MAX_TOTAL_TIME=$(PREBYTE_FUZZ_MAX_TOTAL_TIME) ./scripts/ci/run_fuzzers.sh
 
-.NOTPARALLEL: analyze lint security static-analysis sanitize tsan msan fuzz
+fuzz-regression:
+	chmod +x scripts/ci/run_fuzz_regression.sh
+	./scripts/ci/run_fuzz_regression.sh
+
+.NOTPARALLEL: all ci-full ci-fast analyze lint security static-analysis sanitize tsan msan fuzz fuzz-regression
 
 benchmark: configure
 	cmake --build --preset $(CMAKE_PRESET) --target prebyte_benchmarks
@@ -74,6 +86,18 @@ benchmark: configure
 
 compare-benchmark: configure
 	cmake --build --preset $(CMAKE_PRESET) --target compare-benchmark
+
+benchmark-gate: configure
+	cmake --build --preset $(CMAKE_PRESET) --target prebyte_benchmarks
+	python3 scripts/ci/check_benchmark_regression.py --benchmark-binary $(CMAKE_BUILD_DIR)/prebyte_benchmarks
+
+packaging-smoke: start
+	chmod +x scripts/ci/smoke_packaging.py
+	python3 scripts/ci/smoke_packaging.py --binary $(CMAKE_BUILD_DIR)/prebyte
+
+packaging-smoke-docker: start
+	chmod +x scripts/ci/smoke_packaging.py
+	PREBYTE_SMOKE_DOCKER=1 python3 scripts/ci/smoke_packaging.py --binary $(CMAKE_BUILD_DIR)/prebyte --checks docker
 
 reqpack: start
 	@host_os="$$(uname -s)"; \

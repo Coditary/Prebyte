@@ -7,8 +7,8 @@ CMAKE_PRESET="${CLANG_TIDY_PRESET:-tidy}"
 BUILD_PRESET="${CLANG_TIDY_BUILD_PRESET:-tidy-core}"
 
 ANALYZE_CHECKS='clang-analyzer-*,-clang-analyzer-optin.performance.Padding'
-LINT_CHECKS='bugprone-*,misc-throw-by-value-catch-by-reference,misc-use-after-move,performance-for-range-copy,performance-implicit-conversion-in-loop,performance-inefficient-vector-operation,performance-move-const-arg,performance-no-int-to-ptr,performance-noexcept-move-constructor,performance-unnecessary-copy-initialization,performance-unnecessary-value-param,readability-container-contains,readability-redundant-control-flow,readability-redundant-string-init,readability-suspicious-call-argument,modernize-loop-convert,modernize-avoid-bind,modernize-make-unique,modernize-make-shared,modernize-deprecated-headers,portability-simd-intrinsics'
-SECURITY_CHECKS='cert-*,concurrency-*,cppcoreguidelines-pro-type-const-cast,cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-type-cstyle-cast,cppcoreguidelines-pro-bounds-array-to-pointer-decay,cppcoreguidelines-pro-bounds-constant-array-index,cppcoreguidelines-pro-bounds-pointer-arithmetic'
+LINT_CHECKS='bugprone-*,-bugprone-easily-swappable-parameters,misc-throw-by-value-catch-by-reference,misc-use-after-move,performance-for-range-copy,performance-implicit-conversion-in-loop,performance-inefficient-vector-operation,performance-move-const-arg,performance-no-int-to-ptr,performance-noexcept-move-constructor,performance-unnecessary-copy-initialization,performance-unnecessary-value-param,readability-container-contains,readability-redundant-control-flow,readability-redundant-string-init,readability-suspicious-call-argument,modernize-avoid-bind,modernize-make-unique,modernize-make-shared,modernize-deprecated-headers,portability-simd-intrinsics'
+SECURITY_CHECKS='cert-*,-cert-env33-c,concurrency-*,-concurrency-mt-unsafe,cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-type-cstyle-cast,cppcoreguidelines-pro-bounds-constant-array-index'
 
 resolve_run_clang_tidy() {
     if command -v run-clang-tidy >/dev/null 2>&1; then

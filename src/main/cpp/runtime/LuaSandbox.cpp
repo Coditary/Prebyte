@@ -2,12 +2,10 @@
 
 #include "runtime/LuaHeaders.h"
 
-#include <utility>
-
 namespace prebyte {
 
 LuaSandbox::LuaSandbox(LuaHelperRegistry helper_registry)
-    : helper_registry_(std::move(helper_registry)) {}
+    : helper_registry_(helper_registry) {}
 
 void LuaSandbox::install(lua_State* state) const {
     luaL_openlibs(state);

@@ -31,6 +31,8 @@ public:
     const CompiledProgram* store_inline(std::string_view source, CompiledProgram program,
                                         const EffectiveSettings& settings);
 
+    void clear();
+
 private:
     struct InlineCacheKey {
         std::string source;

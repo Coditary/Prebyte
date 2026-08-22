@@ -53,17 +53,17 @@ void Renderer::render_source_to(std::string_view source, const EffectiveSettings
 
     CompiledTemplateCompiler compiler;
     CompiledProgram program = compiler.compile_source(active_source, current_file, current_file, settings);
-    const CompiledProgram* render_program = &program;
-    if (!file_backed_source) {
-        render_program = CompiledTemplateCache::instance().store_inline(active_source, std::move(program), settings);
+    if (file_backed_source) {
+        CompiledTemplateSerializer serializer;
+        const std::filesystem::path compiled_path = serializer.compiled_path_for_source(current_file);
+        CompiledTemplateCache::instance().store_in_memory(compiled_path, program, settings);
+        CompiledTemplateWriter::instance().enqueue(compiled_path, serializer.serialize(program));
+        render_program_to(program, settings, current_file, session, sink);
+        return;
     }
 
-    CompiledTemplateSerializer serializer;
-    if (file_backed_source) {
-        CompiledTemplateCache::instance().store_in_memory(serializer.compiled_path_for_source(current_file), program, settings);
-        CompiledTemplateWriter::instance().enqueue(serializer.compiled_path_for_source(current_file),
-                                                   serializer.serialize(program));
-    }
+    const CompiledProgram* render_program =
+        CompiledTemplateCache::instance().store_inline(active_source, std::move(program), settings);
     render_program_to(*render_program, settings, current_file, session, sink);
 }
 

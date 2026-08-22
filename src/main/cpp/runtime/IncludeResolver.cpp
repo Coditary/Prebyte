@@ -89,6 +89,10 @@ void validate_include_path(const std::string& include_path, const RenderSession&
         throw DiagnosticError(make_include_error("Include path is too long", include_path, session));
     }
 
+    if (std::filesystem::path(include_path).is_absolute()) {
+        throw DiagnosticError(make_include_error("Absolute include paths are not allowed", include_path, session));
+    }
+
     std::size_t separators = 0;
     for (char ch : include_path) {
         if (ch == '/' || ch == '\\') {
@@ -98,6 +102,79 @@ void validate_include_path(const std::string& include_path, const RenderSession&
     if (separators > kMaxIncludePathSeparators) {
         throw DiagnosticError(make_include_error("Include path is too deep", include_path, session));
     }
+}
+
+bool is_path_within_root(const std::filesystem::path& path, const std::filesystem::path& root) {
+    if (root.empty() || path.empty()) {
+        return false;
+    }
+
+    std::error_code error;
+    std::filesystem::path resolved_path = path;
+    std::filesystem::path resolved_root = root;
+    if (path_exists(path) || path.is_absolute()) {
+        const std::filesystem::path canonical_path = std::filesystem::weakly_canonical(path, error);
+        if (!error) {
+            resolved_path = canonical_path;
+        }
+    } else {
+        resolved_path = canonical_path(path);
+    }
+    if (path_exists(root) || root.is_absolute()) {
+        const std::filesystem::path canonical_root = std::filesystem::weakly_canonical(root, error);
+        if (!error) {
+            resolved_root = canonical_root;
+        }
+    } else {
+        resolved_root = canonical_path(root);
+    }
+
+    const std::filesystem::path relative = resolved_path.lexically_relative(resolved_root);
+    if (relative.empty()) {
+        return resolved_path == resolved_root;
+    }
+    if (relative == ".") {
+        return true;
+    }
+
+    const std::string relative_generic = relative.generic_string();
+    return !(relative_generic == ".." || relative_generic.starts_with("../") || relative_generic.contains("/../"));
+}
+
+std::vector<std::filesystem::path> trusted_include_roots(const std::filesystem::path& current_file,
+                                                         const EffectiveSettings& settings,
+                                                         const RenderSession& session) {
+    std::vector<std::filesystem::path> roots;
+    auto add_root = [&](const std::filesystem::path& path) {
+        if (!path.empty()) {
+            roots.push_back(canonical_path(path));
+        }
+    };
+
+    if (session.include_anchor_root.has_value()) {
+        add_root(*session.include_anchor_root);
+    } else if (!current_file.empty()) {
+        add_root(current_file.parent_path());
+    }
+    for (const std::filesystem::path& path : settings.include_paths) {
+        add_root(path);
+    }
+    add_root(settings.include_path);
+    add_root(shared_include_root());
+    return roots;
+}
+
+void validate_resolved_include_target(const std::filesystem::path& physical_path,
+                                      const std::filesystem::path& current_file,
+                                      const EffectiveSettings& settings,
+                                      const RenderSession& session) {
+    const std::filesystem::path absolute_target = canonical_path(physical_path);
+    for (const std::filesystem::path& root : trusted_include_roots(current_file, settings, session)) {
+        if (is_path_within_root(absolute_target, root)) {
+            return;
+        }
+    }
+    throw DiagnosticError(make_include_error("Include path escapes allowed roots", physical_path, session));
 }
 
 bool try_accept_include(const std::filesystem::path& physical_path, const std::filesystem::path& logical_path,
@@ -116,8 +193,11 @@ bool try_accept_include(const std::filesystem::path& physical_path, const std::f
 }
 
 bool try_file_variant(const std::filesystem::path& physical_path, const std::filesystem::path& logical_path,
-                      ResolvedIncludeKind kind, const EffectiveSettings& settings,
+                      ResolvedIncludeKind kind, const std::filesystem::path& current_file,
+                      const EffectiveSettings& settings,
                       RenderSession& session, ResolvedInclude& resolved) {
+    validate_resolved_include_target(physical_path, current_file, settings, session);
+
     if (kind == ResolvedIncludeKind::Compiled) {
         CompiledTemplateSerializer serializer;
         if (const CompiledProgram* compiled = serializer.try_load_valid(physical_path, settings)) {
@@ -143,31 +223,32 @@ bool try_file_variant(const std::filesystem::path& physical_path, const std::fil
     return true;
 }
 
-bool try_target_path(const std::filesystem::path& logical, const EffectiveSettings& settings,
+bool try_target_path(const std::filesystem::path& logical, const std::filesystem::path& current_file,
+                     const EffectiveSettings& settings,
                      RenderSession& session, ResolvedInclude& resolved) {
     const std::filesystem::path pbc = logical.string() + ".pbc";
-    if (try_file_variant(pbc, logical, ResolvedIncludeKind::Compiled, settings, session, resolved)) {
+    if (try_file_variant(pbc, logical, ResolvedIncludeKind::Compiled, current_file, settings, session, resolved)) {
         return true;
     }
 
     const std::filesystem::path pbt = logical.string() + ".pbt";
-    if (try_file_variant(pbt, logical, ResolvedIncludeKind::Source, settings, session, resolved)) {
+    if (try_file_variant(pbt, logical, ResolvedIncludeKind::Source, current_file, settings, session, resolved)) {
         return true;
     }
 
-    if (try_file_variant(logical, logical, ResolvedIncludeKind::Source, settings, session, resolved)) {
+    if (try_file_variant(logical, logical, ResolvedIncludeKind::Source, current_file, settings, session, resolved)) {
         return true;
     }
 
     if (path_is_directory(logical)) {
         const std::filesystem::path index_logical = logical / "index";
-        if (try_file_variant(index_logical.string() + ".pbc", index_logical, ResolvedIncludeKind::Compiled, settings, session, resolved)) {
+        if (try_file_variant(index_logical.string() + ".pbc", index_logical, ResolvedIncludeKind::Compiled, current_file, settings, session, resolved)) {
             return true;
         }
-        if (try_file_variant(index_logical.string() + ".pbt", index_logical, ResolvedIncludeKind::Source, settings, session, resolved)) {
+        if (try_file_variant(index_logical.string() + ".pbt", index_logical, ResolvedIncludeKind::Source, current_file, settings, session, resolved)) {
             return true;
         }
-        if (try_file_variant(index_logical, index_logical, ResolvedIncludeKind::Source, settings, session, resolved)) {
+        if (try_file_variant(index_logical, index_logical, ResolvedIncludeKind::Source, current_file, settings, session, resolved)) {
             return true;
         }
     }
@@ -176,9 +257,10 @@ bool try_target_path(const std::filesystem::path& logical, const EffectiveSettin
 }
 
 bool try_logical_target(const std::filesystem::path& root, const std::string& include_path,
+                        const std::filesystem::path& current_file,
                         const EffectiveSettings& settings,
                         RenderSession& session, ResolvedInclude& resolved) {
-    return try_target_path(root / include_path, settings, session, resolved);
+    return try_target_path(root / include_path, current_file, settings, session, resolved);
 }
 
 std::vector<std::filesystem::path> include_roots(const std::string& include_path,
@@ -233,7 +315,7 @@ ResolvedInclude IncludeResolver::load(const std::string& include_path, const std
                     resolved.compiled_program = cached.compiled_program;
                     return resolved;
                 }
-            } else if (try_file_variant(cached.physical_path, cached.logical_path, cached.kind, settings, session, resolved)) {
+            } else if (try_file_variant(cached.physical_path, cached.logical_path, cached.kind, current_file, settings, session, resolved)) {
                 return resolved;
             }
             cache_.erase(it);
@@ -241,15 +323,10 @@ ResolvedInclude IncludeResolver::load(const std::string& include_path, const std
     }
 
     if (std::filesystem::path(include_path).is_absolute()) {
-        if (try_target_path(std::filesystem::path(include_path).lexically_normal(), settings, session, resolved)) {
-            std::lock_guard lock(cache_mutex_);
-            cache_[cache_key] = CacheEntry{resolved.path, resolved.logical_path, resolved.kind, resolved.compiled_program,
-                                           std::chrono::steady_clock::now() + FileMetadataCache::ttl()};
-            return resolved;
-        }
+        throw DiagnosticError(make_include_error("Absolute include paths are not allowed", include_path, session));
     } else {
         for (const std::filesystem::path& root : include_roots(include_path, current_file, settings)) {
-            if (try_logical_target(root, include_path, settings, session, resolved)) {
+            if (try_logical_target(root, include_path, current_file, settings, session, resolved)) {
                 std::lock_guard lock(cache_mutex_);
                 cache_[cache_key] = CacheEntry{resolved.path, resolved.logical_path, resolved.kind, resolved.compiled_program,
                                                std::chrono::steady_clock::now() + FileMetadataCache::ttl()};

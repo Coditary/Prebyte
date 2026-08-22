@@ -48,7 +48,7 @@ bool compare_with_order(std::strong_ordering ordering, std::string_view op_name)
 
 bool contains_value(const Value& right, const Value& left) {
     if (const auto string_value = right.try_as_string_view()) {
-        return string_value->find(left.to_string()) != std::string_view::npos;
+        return string_value->contains(left.to_string());
     }
     if (const Value::Object* object = right.try_as_object()) {
         return object->contains(left.to_string());

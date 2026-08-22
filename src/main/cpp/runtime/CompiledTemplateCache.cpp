@@ -164,4 +164,10 @@ const CompiledProgram* CompiledTemplateCache::store_inline(std::string_view sour
     return &it->second.program;
 }
 
+void CompiledTemplateCache::clear() {
+    std::lock_guard lock(mutex_);
+    cache_.clear();
+    inline_cache_.clear();
+}
+
 }

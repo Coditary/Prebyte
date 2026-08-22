@@ -27,7 +27,7 @@ public:
                   const SourceSpan& span) const;
 
 private:
-    static constexpr std::size_t kDefaultMemoryLimitBytes = 4 * 1024 * 1024;
+    static constexpr std::size_t kDefaultMemoryLimitBytes = 4ULL * 1024ULL * 1024ULL;
     static constexpr std::size_t kDefaultInstructionLimit = 100000;
     static constexpr std::size_t kTimeCheckInstructionStep = 1000;
 

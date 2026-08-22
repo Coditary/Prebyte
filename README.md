@@ -80,6 +80,17 @@ cat input.txt | docker run --rm -i ghcr.io/coditary/prebyte:latest
 
 ## Test
 
+Full local validation (coverage, packaging, benchmarks, sanitizers, fuzzers, optional Docker):
+
+```bash
+make
+# or explicitly:
+make all
+make ci-full
+```
+
+Quick test run only:
+
 ```bash
 make test
 ```
@@ -89,6 +100,8 @@ Or with CMake:
 ```bash
 ctest --preset dev
 ```
+
+`make` / `make all` runs the full local check suite via `scripts/ci/run_all_checks.sh` (expect 30–60+ minutes). Use `make start` to build the CLI only.
 
 On Windows, prefer `cmake --build --preset dev --target prebyte_tests` then `ctest --preset dev`.
 

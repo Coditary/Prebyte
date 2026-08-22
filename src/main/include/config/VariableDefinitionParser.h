@@ -13,6 +13,8 @@ public:
     VariableContext parse(const std::vector<std::string>& define_args, const std::map<std::string, std::string>& base_variables,
                           const std::set<std::string>& base_ignore_names) const;
 
+    static void clear_import_cache();
+
 private:
     void parse_define(const std::string& define_arg, VariableContext& context) const;
     void import_file(const std::filesystem::path& path, VariableContext& context) const;

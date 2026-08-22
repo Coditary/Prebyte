@@ -152,6 +152,9 @@ RenderReport AppRunner::render_report(const Command& command) const {
     session.ignore_names_ref = &variable_context.ignore_names;
     session.effective_settings_cache_ref = &effective_settings_cache;
     session.start_time = start_time;
+    if (command.input_path.has_value()) {
+        session.include_anchor_root = command.input_path->parent_path();
+    }
 
     BuiltinRegistry builtins;
     ExpressionEvaluator expression_engine(builtins);

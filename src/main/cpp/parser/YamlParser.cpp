@@ -1,19 +1,69 @@
 #include "parser/YamlParser.h"
 
+#include "support/FileUtil.h"
 #include "support/TextUtil.h"
 
-#include <fstream>
-#include <iterator>
-#include <regex>
+#include <cctype>
 
 namespace prebyte {
 
 namespace {
 
+constexpr std::size_t kMaxYamlLines = 8192;
+constexpr std::size_t kMaxYamlCollectionEntries = 8192;
+constexpr std::size_t kMaxYamlScalarLength = 4096;
+
 struct YamlLine {
     std::size_t indent = 0;
     std::string text;
 };
+
+bool looks_like_integer(std::string_view value) {
+    if (value.empty()) {
+        return false;
+    }
+    std::size_t index = 0;
+    if (value[index] == '-') {
+        if (value.size() == 1) {
+            return false;
+        }
+        ++index;
+    }
+    for (; index < value.size(); ++index) {
+        if (!std::isdigit(static_cast<unsigned char>(value[index]))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool looks_like_double(std::string_view value) {
+    if (value.empty()) {
+        return false;
+    }
+    std::size_t index = 0;
+    bool saw_dot = false;
+    if (value[index] == '-') {
+        if (value.size() == 1) {
+            return false;
+        }
+        ++index;
+    }
+    for (; index < value.size(); ++index) {
+        const char ch = value[index];
+        if (ch == '.') {
+            if (saw_dot) {
+                return false;
+            }
+            saw_dot = true;
+            continue;
+        }
+        if (!std::isdigit(static_cast<unsigned char>(ch))) {
+            return false;
+        }
+    }
+    return saw_dot;
+}
 
 Data parse_scalar(const std::string& raw) {
     const std::string value = text::trim(raw);
@@ -23,13 +73,19 @@ Data parse_scalar(const std::string& raw) {
     if (value == "false") {
         return Data(false);
     }
-    static const std::regex int_regex(R"(^-?\d+$)");
-    static const std::regex double_regex(R"(^-?\d+\.\d+$)");
-    if (std::regex_match(value, int_regex)) {
-        return Data(std::stoi(value));
-    }
-    if (std::regex_match(value, double_regex)) {
-        return Data(std::stod(value));
+    if (value.size() <= kMaxYamlScalarLength) {
+        if (looks_like_integer(value)) {
+            try {
+                return Data(std::stoi(value));
+            } catch (const std::exception&) { // NOLINT(bugprone-empty-catch)
+            }
+        }
+        if (looks_like_double(value)) {
+            try {
+                return Data(std::stod(value));
+            } catch (const std::exception&) { // NOLINT(bugprone-empty-catch)
+            }
+        }
     }
     if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
         return Data(value.substr(1, value.size() - 2));
@@ -42,6 +98,9 @@ std::vector<YamlLine> tokenize_yaml(const std::string& input) {
     std::istringstream stream(input);
     std::string line;
     while (std::getline(stream, line)) {
+        if (lines.size() >= kMaxYamlLines) {
+            throw std::runtime_error("YAML input exceeds supported line limit");
+        }
         const std::size_t first = line.find_first_not_of(' ');
         if (first == std::string::npos) {
             continue;
@@ -80,6 +139,9 @@ private:
     Data parse_map(std::size_t indent) {
         Data::Map map;
         while (index_ < lines_.size() && lines_[index_].indent == indent && !text::starts_with(lines_[index_].text, "- ")) {
+            if (map.size() >= kMaxYamlCollectionEntries) {
+                throw std::runtime_error("YAML map exceeds supported entry limit");
+            }
             const std::string line = lines_[index_].text;
             const std::size_t colon = line.find(':');
             if (colon == std::string::npos) {
@@ -107,6 +169,9 @@ private:
     Data parse_array(std::size_t indent) {
         Data::Array array;
         while (index_ < lines_.size() && lines_[index_].indent == indent && text::starts_with(lines_[index_].text, "- ")) {
+            if (array.size() >= kMaxYamlCollectionEntries) {
+                throw std::runtime_error("YAML array exceeds supported entry limit");
+            }
             const std::string rest = text::trim(lines_[index_].text.substr(2));
             ++index_;
 
@@ -128,18 +193,10 @@ private:
     std::size_t index_ = 0;
 };
 
-std::string read_file(const std::filesystem::path& path) {
-    std::ifstream stream(path);
-    if (!stream) {
-        throw std::runtime_error("Could not open YAML file: " + path.string());
-    }
-    return std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
-}
-
 }
 
 Data YamlParser::parse(const std::filesystem::path& filepath) {
-    return parse_string(read_file(filepath));
+    return parse_string(file_util::read_text_file(filepath));
 }
 
 bool YamlParser::can_parse(const std::filesystem::path& filepath) const {

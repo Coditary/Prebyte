@@ -123,6 +123,35 @@ TEST_CASE(CliBinaryE2E_strict_variable_failure_exits_nonzero) {
     REQUIRE(result.stderr_text.find("error[") != std::string::npos);
 }
 
+TEST_CASE(CliBinaryE2E_allow_includes_disabled_exits_nonzero) {
+    const std::filesystem::path root = cli_test_root("includes-disabled");
+    write_file(root / "partial.pbt", "Partial\n");
+    write_file(root / "main.pbt", "{{ include \"partial.pbt\" }}");
+
+    const prebyte::test::ProcessResult result =
+        prebyte::test::run_cli({(root / "main.pbt").string(), "-r", "allow_includes=false"});
+
+    REQUIRE(result.exit_code != 0);
+    REQUIRE(result.stderr_text.find("error[") != std::string::npos);
+}
+
+TEST_CASE(CliBinaryE2E_list_profiles_via_subprocess) {
+    const prebyte::test::ProcessResult result = prebyte::test::run_cli(
+        {"list", "profiles", "-s", "tests/fixtures/settings_profile_merge/settings.yaml"});
+
+    REQUIRE_EQ(result.exit_code, 0);
+    REQUIRE(result.stdout_text.find("friendly") != std::string::npos);
+}
+
+TEST_CASE(CliBinaryE2E_render_with_settings_file_via_subprocess) {
+    const prebyte::test::ProcessResult result = prebyte::test::run_cli(
+        {"tests/fixtures/settings_profile_merge/input.txt", "-s",
+         "tests/fixtures/settings_profile_merge/settings.yaml", "-p", "friendly", "-Dname=Ada"});
+
+    REQUIRE_EQ(result.exit_code, 0);
+    REQUIRE(result.stdout_text.find("Ada") != std::string::npos);
+}
+
 TEST_CASE(CliBinaryE2E_render_named_structured_imports_via_cli) {
     const std::filesystem::path root = cli_test_root("structured-imports");
     const std::filesystem::path template_path = root / "input.pbt";
@@ -183,4 +212,69 @@ TEST_CASE(CliBinaryE2E_benchmark_flag_appends_timing_suffix) {
     REQUIRE(result.stdout_text.find("Hello Ada\n") == 0);
     REQUIRE(result.stdout_text.find("\n[benchmark] ") != std::string::npos);
     REQUIRE(result.stdout_text.find("lua_cache_hits=") != std::string::npos);
+}
+
+TEST_CASE(CliBinaryE2E_list_ignores_merges_settings_profiles_and_cli) {
+    const prebyte::test::ProcessResult result = prebyte::test::run_cli(
+        {"list", "ignores", "-s", "tests/fixtures/settings_profile_merge/settings.yaml", "-p", "friendly",
+         "-i", "cli_only"});
+
+    REQUIRE_EQ(result.exit_code, 0);
+    REQUIRE(result.stdout_text.find("base_ignore") != std::string::npos);
+    REQUIRE(result.stdout_text.find("friendly_ignore") != std::string::npos);
+    REQUIRE(result.stdout_text.find("cli_only") != std::string::npos);
+}
+
+TEST_CASE(CliBinaryE2E_render_from_stdin_with_render_args) {
+    const prebyte::test::ProcessResult result = prebyte::test::run_cli(
+        {"--", "alpha", "beta"}, prebyte::test::cli_working_directory(), {},
+        "Hello {{ ARGS[0] }}|{{ ARGS[1] }}\n");
+
+    REQUIRE_EQ(result.exit_code, 0);
+    REQUIRE_EQ(result.stdout_text, std::string("Hello alpha|beta\n"));
+}
+
+TEST_CASE(CliBinaryE2E_utf16_output_writes_bom_and_little_endian_units) {
+    const std::filesystem::path root = cli_test_root("utf16-output");
+    const std::filesystem::path output_path = root / "out.txt";
+
+    const prebyte::test::ProcessResult result = prebyte::test::run_cli(
+        {"tests/fixtures/render_simple/input.txt", "-Dname=A", "-r", "output_encoding=utf-16", "-o",
+         output_path.string()});
+
+    REQUIRE_EQ(result.exit_code, 0);
+    const std::string bytes = read_file(output_path);
+    REQUIRE_EQ(bytes.size(), static_cast<std::size_t>(18));
+    REQUIRE_EQ(static_cast<unsigned char>(bytes[0]), 0xFFu);
+    REQUIRE_EQ(static_cast<unsigned char>(bytes[1]), 0xFEu);
+    REQUIRE_EQ(static_cast<unsigned char>(bytes[2]), 0x48u);
+    REQUIRE_EQ(static_cast<unsigned char>(bytes[3]), 0x00u);
+    REQUIRE_EQ(static_cast<unsigned char>(bytes[16]), 0x0Au);
+    REQUIRE_EQ(static_cast<unsigned char>(bytes[17]), 0x00u);
+}
+
+TEST_CASE(CliBinaryE2E_include_path_allows_parent_relative_includes) {
+    const std::filesystem::path root = cli_test_root("include-path");
+    write_file(root / "partial.pbt", "Partial\n");
+    write_file(root / "nested" / "main.pbt", "{{ include \"../partial.pbt\" }}");
+
+    const prebyte::test::ProcessResult result = prebyte::test::run_cli(
+        {(root / "nested" / "main.pbt").string(), "-r", "allow_includes=true", "-I", root.string()});
+
+    REQUIRE_EQ(result.exit_code, 0);
+    REQUIRE_EQ(result.stdout_text, std::string("Partial\n"));
+}
+
+TEST_CASE(CliBinaryE2E_traversal_outside_allowed_roots_exits_nonzero) {
+    const std::filesystem::path root = cli_test_root("traversal-escape");
+    const std::filesystem::path outside = root.parent_path() / (root.filename().string() + "-outside");
+    write_file(outside / "secret.txt", "LEAKED\n");
+    write_file(root / "nested" / "main.pbt",
+               "{{ include \"../../" + (root.filename().string() + "-outside") + "/secret.txt\" }}");
+
+    const prebyte::test::ProcessResult result = prebyte::test::run_cli(
+        {(root / "nested" / "main.pbt").string(), "-r", "allow_includes=true"});
+
+    REQUIRE(result.exit_code != 0);
+    REQUIRE(result.stderr_text.find("escapes allowed roots") != std::string::npos);
 }

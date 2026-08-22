@@ -102,23 +102,40 @@ validate_seed_uniqueness() {
     done
 }
 
+CORPUS_HASH_INDEX_FILE=""
+
+build_corpus_hash_index() {
+    local corpus=$1
+    local entry
+
+    CORPUS_HASH_INDEX_FILE=$(mktemp)
+    shopt -s nullglob
+    for entry in "$corpus"/*; do
+        [[ -f "$entry" ]] || continue
+        sha1sum "$entry"
+    done >"$CORPUS_HASH_INDEX_FILE"
+}
+
+clear_corpus_hash_index() {
+    if [[ -n "$CORPUS_HASH_INDEX_FILE" ]]; then
+        rm -f "$CORPUS_HASH_INDEX_FILE"
+        CORPUS_HASH_INDEX_FILE=""
+    fi
+}
+
 corpus_contains_seed() {
     local corpus=$1
     local seed_file=$2
-    local hash entry
+    local hash
 
     hash=$(sha1sum "$seed_file" | awk '{print $1}')
     if [[ -f "$corpus/$hash" ]]; then
         return 0
     fi
 
-    shopt -s nullglob
-    for entry in "$corpus"/*; do
-        [[ -f "$entry" ]] || continue
-        if cmp -s "$seed_file" "$entry"; then
-            return 0
-        fi
-    done
+    if [[ -n "$CORPUS_HASH_INDEX_FILE" ]] && grep -q "^$hash " "$CORPUS_HASH_INDEX_FILE"; then
+        return 0
+    fi
 
     return 1
 }
@@ -145,6 +162,9 @@ install_seed_into_corpus() {
     fi
 
     cp "$seed_file" "$corpus/$target"
+    if [[ -n "$CORPUS_HASH_INDEX_FILE" ]]; then
+        printf '%s  %s\n' "$hash" "$corpus/$target" >>"$CORPUS_HASH_INDEX_FILE"
+    fi
 }
 
 # shellcheck source=scripts/ci/fuzz_seed_guard.sh
@@ -156,7 +176,9 @@ bootstrap_corpus() {
     local seeds_dir
     seeds_dir=$(seed_dir_for_target "$target")
 
+    printf 'Bootstrapping corpus for %s\n' "$target"
     mkdir -p "$corpus"
+    build_corpus_hash_index "$corpus"
     relocate_generated_seed_artifacts "$seeds_dir" "$corpus"
     validate_seed_uniqueness "$seeds_dir"
 
@@ -166,6 +188,7 @@ bootstrap_corpus() {
         install_seed_into_corpus "$seed_file" "$corpus"
     done
 
+    clear_corpus_hash_index
     rename_fuzz_corpus_entries "$corpus"
 }
 
@@ -188,3 +211,7 @@ for target in "${FUZZ_TARGETS[@]}"; do
         "$corpus"
     rename_fuzz_corpus_entries "$corpus"
 done
+
+chmod +x "$ROOT/scripts/ci/run_fuzz_regression.sh"
+printf 'Running fuzz regression replay\n'
+"$ROOT/scripts/ci/run_fuzz_regression.sh"

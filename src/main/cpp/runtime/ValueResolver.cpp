@@ -95,7 +95,7 @@ Value ValueResolver::resolve_identifier(const std::string& name, const SourceSpa
         return normalize_value(*value, settings);
     }
 
-    if (name.find('.') != std::string::npos && !text::starts_with(name, "ARGS")) {
+    if (name.contains('.') && !text::starts_with(name, "ARGS")) {
         return resolve_member_path(name, span, settings, session, current_file);
     }
 

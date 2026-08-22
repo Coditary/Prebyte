@@ -1,5 +1,5 @@
 #include "config/ConfigTypes.h"
-#include "runtime/FileMetadataCache.h"
+#include "support/FuzzRuntimeReset.h"
 #include "runtime/IncludeResolver.h"
 #include "runtime/RenderSession.h"
 #include "support/Diagnostic.h"
@@ -36,7 +36,7 @@ void seed_filesystem(const std::filesystem::path& root) {
 extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
     FuzzedDataProvider provider(data, size);
 
-    prebyte::FileMetadataCache::instance().clear();
+    fuzz_reset_runtime_state();
 
     const std::string include_path = provider.ConsumeRandomLengthString(128);
     const std::string current_file = provider.ConsumeRandomLengthString(128);

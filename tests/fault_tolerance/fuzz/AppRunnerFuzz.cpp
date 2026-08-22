@@ -1,6 +1,6 @@
 #include "app/AppRunner.h"
 #include "app/Command.h"
-#include "runtime/FileMetadataCache.h"
+#include "support/FuzzRuntimeReset.h"
 #include "support/Diagnostic.h"
 #include "support/FuzzTempDir.h"
 
@@ -154,7 +154,7 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
     }
 
     FuzzedDataProvider provider(data, size);
-    prebyte::FileMetadataCache::instance().clear();
+    fuzz_reset_runtime_state();
 
     const prebyte::CommandMode mode = pick_mode(provider);
     const bool use_inline_input = provider.ConsumeBool();

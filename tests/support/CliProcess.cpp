@@ -43,10 +43,13 @@ void apply_extra_env(const std::map<std::string, std::string>& extra_env) {
 
 ProcessResult run_cli_posix(const std::filesystem::path& executable, const std::vector<std::string>& args,
                             const std::filesystem::path& working_directory,
-                            const std::map<std::string, std::string>& extra_env) {
+                            const std::map<std::string, std::string>& extra_env,
+                            const std::string& stdin_text) {
     int stdout_pipe[2]{-1, -1};
     int stderr_pipe[2]{-1, -1};
-    if (::pipe(stdout_pipe) != 0 || ::pipe(stderr_pipe) != 0) {
+    int stdin_pipe[2]{-1, -1};
+    if (::pipe(stdout_pipe) != 0 || ::pipe(stderr_pipe) != 0
+        || (!stdin_text.empty() && ::pipe(stdin_pipe) != 0)) {
         throw std::runtime_error("failed to create subprocess pipes");
     }
 
@@ -64,10 +67,17 @@ ProcessResult run_cli_posix(const std::filesystem::path& executable, const std::
 
         ::dup2(stdout_pipe[1], STDOUT_FILENO);
         ::dup2(stderr_pipe[1], STDERR_FILENO);
+        if (!stdin_text.empty()) {
+            ::dup2(stdin_pipe[0], STDIN_FILENO);
+        }
         ::close(stdout_pipe[0]);
         ::close(stdout_pipe[1]);
         ::close(stderr_pipe[0]);
         ::close(stderr_pipe[1]);
+        if (!stdin_text.empty()) {
+            ::close(stdin_pipe[0]);
+            ::close(stdin_pipe[1]);
+        }
 
         std::vector<std::string> argv_storage;
         argv_storage.reserve(args.size() + 1);
@@ -89,6 +99,17 @@ ProcessResult run_cli_posix(const std::filesystem::path& executable, const std::
 
     ::close(stdout_pipe[1]);
     ::close(stderr_pipe[1]);
+    if (!stdin_text.empty()) {
+        ::close(stdin_pipe[0]);
+        if (!stdin_text.empty()) {
+            const ssize_t bytes_written =
+                ::write(stdin_pipe[1], stdin_text.data(), static_cast<ssize_t>(stdin_text.size()));
+            if (bytes_written < 0) {
+                throw std::runtime_error("failed to write subprocess stdin");
+            }
+        }
+        ::close(stdin_pipe[1]);
+    }
 
     ProcessResult result;
     result.stdout_text = read_pipe_data(stdout_pipe[0]);
@@ -191,7 +212,8 @@ std::string read_windows_pipe(HANDLE handle) {
 
 ProcessResult run_cli_windows(const std::filesystem::path& executable, const std::vector<std::string>& args,
                               const std::filesystem::path& working_directory,
-                              const std::map<std::string, std::string>& extra_env) {
+                              const std::map<std::string, std::string>& extra_env,
+                              const std::string& stdin_text) {
     SECURITY_ATTRIBUTES security_attributes{};
     security_attributes.nLength = sizeof(security_attributes);
     security_attributes.bInheritHandle = TRUE;
@@ -200,20 +222,26 @@ ProcessResult run_cli_windows(const std::filesystem::path& executable, const std
     HANDLE stdout_write = nullptr;
     HANDLE stderr_read = nullptr;
     HANDLE stderr_write = nullptr;
+    HANDLE stdin_read = nullptr;
+    HANDLE stdin_write = nullptr;
     if (!::CreatePipe(&stdout_read, &stdout_write, &security_attributes, 0)
-        || !::CreatePipe(&stderr_read, &stderr_write, &security_attributes, 0)) {
+        || !::CreatePipe(&stderr_read, &stderr_write, &security_attributes, 0)
+        || (!stdin_text.empty() && !::CreatePipe(&stdin_read, &stdin_write, &security_attributes, 0))) {
         throw std::runtime_error("failed to create subprocess pipes");
     }
 
     ::SetHandleInformation(stdout_read, HANDLE_FLAG_INHERIT, 0);
     ::SetHandleInformation(stderr_read, HANDLE_FLAG_INHERIT, 0);
+    if (!stdin_text.empty()) {
+        ::SetHandleInformation(stdin_write, HANDLE_FLAG_INHERIT, 0);
+    }
 
     STARTUPINFOW startup_info{};
     startup_info.cb = sizeof(startup_info);
     startup_info.dwFlags = STARTF_USESTDHANDLES;
     startup_info.hStdOutput = stdout_write;
     startup_info.hStdError = stderr_write;
-    startup_info.hStdInput = ::GetStdHandle(STD_INPUT_HANDLE);
+    startup_info.hStdInput = stdin_text.empty() ? ::GetStdHandle(STD_INPUT_HANDLE) : stdin_read;
 
     PROCESS_INFORMATION process_info{};
     const std::wstring command_line = build_windows_command_line(executable, args);
@@ -242,6 +270,9 @@ ProcessResult run_cli_windows(const std::filesystem::path& executable, const std
         &process_info);
     ::CloseHandle(stdout_write);
     ::CloseHandle(stderr_write);
+    if (!stdin_text.empty()) {
+        ::CloseHandle(stdin_read);
+    }
 
     if (!created) {
         ::CloseHandle(stdout_read);
@@ -250,6 +281,19 @@ ProcessResult run_cli_windows(const std::filesystem::path& executable, const std
     }
 
     ProcessResult result;
+    if (!stdin_text.empty()) {
+        DWORD bytes_written = 0;
+        if (!::WriteFile(stdin_write, stdin_text.data(), static_cast<DWORD>(stdin_text.size()), &bytes_written, nullptr)) {
+            ::CloseHandle(stdout_read);
+            ::CloseHandle(stderr_read);
+            ::CloseHandle(stdin_write);
+            ::CloseHandle(process_info.hThread);
+            ::CloseHandle(process_info.hProcess);
+            throw std::runtime_error("failed to write subprocess stdin");
+        }
+        ::CloseHandle(stdin_write);
+    }
+
     result.stdout_text = read_windows_pipe(stdout_read);
     result.stderr_text = read_windows_pipe(stderr_read);
     ::CloseHandle(stdout_read);
@@ -292,12 +336,12 @@ std::filesystem::path cli_working_directory() {
 }
 
 ProcessResult run_cli(const std::vector<std::string>& args, const std::filesystem::path& working_directory,
-                      const std::map<std::string, std::string>& extra_env) {
+                      const std::map<std::string, std::string>& extra_env, const std::string& stdin_text) {
     const std::filesystem::path executable = cli_binary_path();
 #ifndef _WIN32
-    return run_cli_posix(executable, args, working_directory, extra_env);
+    return run_cli_posix(executable, args, working_directory, extra_env, stdin_text);
 #else
-    return run_cli_windows(executable, args, working_directory, extra_env);
+    return run_cli_windows(executable, args, working_directory, extra_env, stdin_text);
 #endif
 }
 

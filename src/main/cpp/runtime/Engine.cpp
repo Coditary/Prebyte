@@ -87,8 +87,8 @@ Engine::Engine()
     : impl_(std::make_shared<Impl>()) {}
 
 CompiledTemplate Engine::compile(std::string_view source,
-                                 std::filesystem::path source_path,
-                                 std::filesystem::path logical_path,
+                                 const std::filesystem::path& source_path,
+                                 const std::filesystem::path& logical_path,
                                  const CompileOptions& options) const {
     CompiledTemplateCompiler compiler;
     CompiledProgram program = compiler.compile_source(source, source_path, logical_path, make_compile_settings(options));
@@ -127,7 +127,7 @@ std::string Engine::render(const CompiledTemplate& tpl,
 }
 
 void Engine::render_to(const CompiledTemplate& tpl,
-                       ChunkSink sink,
+                       const ChunkSink& sink,
                        const RenderContext& ctx,
                        const RenderOptions& opts) const {
     if (!tpl.impl_) {

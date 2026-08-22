@@ -1,6 +1,6 @@
 #include "app/AppRunner.h"
 #include "app/Command.h"
-#include "runtime/FileMetadataCache.h"
+#include "support/FuzzRuntimeReset.h"
 #include "support/Diagnostic.h"
 
 #include <cstddef>
@@ -88,7 +88,7 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
     }
 
     FuzzedDataProvider provider(data, size);
-    prebyte::FileMetadataCache::instance().clear();
+    fuzz_reset_runtime_state();
 
     const int route = provider.ConsumeIntegralInRange(0, 4);
     const int escape_index = provider.ConsumeIntegralInRange(0, static_cast<int>(sizeof(kEscapeSnippets) / sizeof(kEscapeSnippets[0])) - 1);

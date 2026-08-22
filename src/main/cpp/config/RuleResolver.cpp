@@ -66,7 +66,7 @@ ResolvedConfiguration RuleResolver::resolve(const SettingsData& settings, const 
     configuration.ignore_names.insert(cli_ignore_names.begin(), cli_ignore_names.end());
 
     for (const std::string& rule_arg : cli_rule_args) {
-        if (rule_arg.find("::") != std::string::npos) {
+        if (rule_arg.contains("::")) {
             configuration.file_rules.push_back(parse_file_rule(rule_arg));
             continue;
         }

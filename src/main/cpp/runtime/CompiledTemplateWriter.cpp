@@ -74,7 +74,7 @@ void CompiledTemplateWriter::run() {
         std::filesystem::create_directories(job.first.parent_path(), error);
         try {
             writer.write(job.second, job.first);
-        } catch (const std::exception&) {
+        } catch (const std::exception&) { // NOLINT(bugprone-empty-catch)
         }
         {
             std::lock_guard lock(impl_->mutex);

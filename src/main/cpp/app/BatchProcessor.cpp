@@ -145,7 +145,7 @@ std::string resolve_output_filename(const BatchEntry& entry, const std::optional
         return *override_name;
     }
     if (!entry.output_name.empty()) {
-        if (entry.output_name.find('.') != std::string::npos || template_path.empty()) {
+        if (entry.output_name.contains('.') || template_path.empty()) {
             return entry.output_name;
         }
         return entry.output_name + template_path.extension().string();

@@ -23,6 +23,7 @@ class LuaChunkCache {
 public:
     std::optional<int> find(const LuaChunkKey& key) const;
     void store(const LuaChunkKey& key, int registry_reference);
+    void clear();
 
 private:
     std::map<LuaChunkKey, int> cache_;
