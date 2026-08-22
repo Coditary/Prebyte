@@ -136,12 +136,14 @@ if(PREBYTE_ENABLE_SANITIZERS)
                 -nostdinc++
                 -isystem "${PREBYTE_MSAN_LIBCXX_PREFIX}/include/c++/v1")
             link_directories("${PREBYTE_MSAN_LIBCXX_PREFIX}/lib")
+            # No -lunwind here: the MSan libc++ prefix deliberately ships no
+            # instrumented libunwind (see bootstrap_msan_libcxx.sh); libc++abi
+            # resolves the system libgcc_s unwinder by itself.
             list(APPEND PREBYTE_SANITIZER_LINK_OPTIONS
                 -stdlib=libc++
                 "LINKER:-rpath,${PREBYTE_MSAN_LIBCXX_PREFIX}/lib"
                 -lc++
-                -lc++abi
-                -lunwind)
+                -lc++abi)
         endif()
     endif()
 

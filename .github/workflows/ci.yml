@@ -431,7 +431,6 @@ jobs:
   msan:
     name: msan-linux-x86_64
     runs-on: ubuntu-24.04
-    continue-on-error: true
     permissions:
       contents: read
     steps:

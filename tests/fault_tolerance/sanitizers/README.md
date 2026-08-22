@@ -22,16 +22,9 @@ MSan needs every library linked into the binary to be compiled with `-fsanitize=
 
 Prerequisites: `clang`, `clang++`, `cmake`, `ninja`, and `git`.
 
-The bootstrap builds LLVM runtimes only (`libcxx`, `libc++abi`, `libunwind`) with `-fsanitize=memory` — not the full LLVM toolchain — so it completes in a few minutes and is cached between runs.
+The bootstrap builds the LLVM runtimes `libcxx` and `libc++abi` with `-fsanitize=memory` — not the full LLVM toolchain — so it completes in a few minutes and is cached between runs.
 
-### Known limitations
-
-Even with instrumented libc++, some tests still fail under MSan:
-
-- tests that expect thrown exceptions (`REQUIRE_THROWS_AS`) can hit MSan stack overflows when unwinding through dynamically linked dependencies built against libstdc++
-- CLI/subprocess E2E tests that fork `prebyte` inherit the same limitation
-
-The CI job is marked `continue-on-error: true` until the dependency chain is fully libc++/MSan-clean. Locally, MSan is still useful as a smoke check: most non-exception tests pass.
+`libunwind` is deliberately **not** part of the instrumented build. Its register context is populated by assembly (`__unw_getcontext`), which MSan cannot track, so an instrumented libunwind reports `use-of-uninitialized-value` inside `UnwindCursor::getReg` on every C++ exception throw — and because MSan itself uses the unwinder to print the report, the failure recurses into a `stack-overflow`/`nested bug` abort (upstream: [llvm/llvm-project#84348](https://github.com/llvm/llvm-project/issues/84348)). The bootstrap therefore sets `LIBCXXABI_USE_LLVM_UNWINDER=OFF`, and exception unwinding goes through the system `libgcc_s`, which needs no instrumentation.
 
 `make ci-fast` and the default `make ci-full` gate on ASan/TSan only. Opt in to MSan locally with:
 
