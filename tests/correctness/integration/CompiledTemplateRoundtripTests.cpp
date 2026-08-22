@@ -7,6 +7,7 @@
 #include "runtime/compiled/CompiledTemplateCache.h"
 #include "runtime/compiled/CompiledTemplateCompiler.h"
 #include "runtime/compiled/CompiledTemplateSerializer.h"
+#include "runtime/compiled/CompiledTemplateWriter.h"
 #include "runtime/expression/ExpressionEvaluator.h"
 #include "runtime/cache/FileMetadataCache.h"
 #include "runtime/resolution/IncludeResolver.h"
@@ -109,6 +110,7 @@ std::string app_runner_render_file(const std::filesystem::path& input_path,
 
 void write_compiled_artifact(const std::filesystem::path& source_path, const std::string& source,
                              const prebyte::EffectiveSettings& settings) {
+    prebyte::CompiledTemplateWriter::instance().wait_idle();
     prebyte::CompiledTemplateCompiler compiler;
     prebyte::CompiledTemplateSerializer serializer;
     const prebyte::CompiledProgram program =
@@ -223,6 +225,7 @@ TEST_CASE(CompiledTemplateRoundtrip_modified_source_recompiles_when_dependency_i
 
     reset_template_caches(source_path, settings);
     REQUIRE_EQ(app_runner_render_file(source_path), std::string("Hi Ada"));
+    prebyte::CompiledTemplateWriter::instance().wait_idle();
 
     write_compiled_artifact(source_path, updated_source, settings);
 

@@ -10,6 +10,7 @@ public:
     static CompiledTemplateWriter& instance();
 
     void enqueue(std::filesystem::path output_path, std::string bytes);
+    void wait_idle();
 
 private:
     CompiledTemplateWriter();
