@@ -17,7 +17,7 @@ void VariableStore::set_value(const std::string& name, Value value) {
 
 const Value* VariableStore::get_value(std::string_view name, bool case_sensitive) const {
     if (case_sensitive) {
-        auto it = exact_values_.find(name);
+        auto it = exact_values_.find(std::string(name));
         if (it == exact_values_.end()) {
             return nullptr;
         }

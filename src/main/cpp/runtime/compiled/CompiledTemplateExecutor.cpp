@@ -795,7 +795,7 @@ Value CompiledTemplateExecutor::evaluate_expression(const CompiledProgram& progr
                     } else {
                         stack.push_back(*value);
                     }
-                } else if (const Value* value = session.variables_view().get_value(name, true)) {
+                } else if (const Value* value = session.variables_view().get_value(name, settings.case_sensitive_variables)) {
                     if (const auto string_value = value->try_as_string_view()) {
                         stack.push_back(Value::borrowed(*string_value));
                     } else {
@@ -1020,7 +1020,9 @@ Value CompiledTemplateExecutor::call_function(const RenderSession::FunctionDefin
                                               const EffectiveSettings& settings,
                                               const std::filesystem::path& current_file,
                                               RenderSession& session) const {
-    const RenderSession::FunctionDefinition& active_function = function;
+    // Copy before push_local_scope(): emplace_back() on function_scopes may reallocate and
+    // invalidate references/pointers returned by lookup_function().
+    const RenderSession::FunctionDefinition active_function = function;
     const std::filesystem::path function_file = function_file_for(active_function, current_file);
     ensure_render_time_budget(settings, function_file, session);
     if (active_function.parameters.size() != arguments.size()) {

@@ -139,6 +139,7 @@ struct RenderSession {
 
     RenderSession() {
         include_stack.reserve(kLinearIncludeDepth);
+        function_scopes.reserve(kMaxFunctionCallDepth + 1);
         function_scopes.emplace_back();
     }
 
@@ -186,6 +187,9 @@ struct RenderSession {
         if (local_scopes.empty()) {
             push_local_scope();
         }
+        if (const auto string_value = value.try_as_string_view()) {
+            value = Value(std::string(*string_value));
+        }
         local_scopes.back().values[std::move(name)] = std::move(value);
     }
 
@@ -227,12 +231,8 @@ struct RenderSession {
     }
 
     static const Value* local_scope_value(const LocalScopeFrame& frame, std::string_view name, bool case_sensitive) {
-        if (case_sensitive) {
-            auto it = frame.values.find(std::string(name));
-            return it == frame.values.end() ? nullptr : &it->second;
-        }
         for (const auto& [candidate, value] : frame.values) {
-            if (names_equal(candidate, name, false)) {
+            if (names_equal(candidate, name, case_sensitive)) {
                 return &value;
             }
         }
@@ -242,8 +242,12 @@ struct RenderSession {
     static const FunctionDefinition* function_scope_value(const FunctionScopeFrame& frame,
                                                           std::string_view name, bool case_sensitive) {
         if (case_sensitive) {
-            auto it = frame.values.find(std::string(name));
-            return it == frame.values.end() ? nullptr : &it->second;
+            for (const auto& [candidate, value] : frame.values) {
+                if (candidate == name) {
+                    return &value;
+                }
+            }
+            return nullptr;
         }
         for (const auto& [candidate, value] : frame.values) {
             if (names_equal(candidate, name, false)) {
