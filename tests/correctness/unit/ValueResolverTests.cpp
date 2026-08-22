@@ -1,8 +1,8 @@
 #include "TestHarness.h"
 
 #include "datatypes/Data.h"
-#include "runtime/BuiltinRegistry.h"
-#include "runtime/ValueResolver.h"
+#include "runtime/expression/BuiltinRegistry.h"
+#include "runtime/expression/ValueResolver.h"
 #include "support/Diagnostic.h"
 #include "support/SourceSpan.h"
 

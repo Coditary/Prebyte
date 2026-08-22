@@ -1,7 +1,7 @@
 #include "TestHarness.h"
 
 #include "io/InputBuffer.h"
-#include "runtime/CompiledTemplateWriter.h"
+#include "runtime/compiled/CompiledTemplateWriter.h"
 
 #include <chrono>
 #include <filesystem>

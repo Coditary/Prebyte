@@ -4,10 +4,10 @@
 #include "app/Command.h"
 #include "config/RuleResolver.h"
 #include "io/InputBuffer.h"
-#include "runtime/BuiltinRegistry.h"
-#include "runtime/ExpressionEvaluator.h"
-#include "runtime/IncludeResolver.h"
-#include "runtime/Renderer.h"
+#include "runtime/expression/BuiltinRegistry.h"
+#include "runtime/expression/ExpressionEvaluator.h"
+#include "runtime/resolution/IncludeResolver.h"
+#include "runtime/render/Renderer.h"
 #include "support/Diagnostic.h"
 
 #include <chrono>

@@ -1,6 +1,6 @@
 #include "config/ConfigTypes.h"
-#include "runtime/CompiledTemplateCompiler.h"
-#include "runtime/CompiledTemplateSerializer.h"
+#include "runtime/compiled/CompiledTemplateCompiler.h"
+#include "runtime/compiled/CompiledTemplateSerializer.h"
 
 #include <fstream>
 #include <iostream>

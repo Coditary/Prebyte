@@ -1,9 +1,9 @@
 #include "TestHarness.h"
 
 #include "datatypes/Data.h"
-#include "runtime/LuaHeaders.h"
-#include "runtime/LuaRuntime.h"
-#include "runtime/LuaValueBridge.h"
+#include "runtime/lua/LuaHeaders.h"
+#include "runtime/lua/LuaRuntime.h"
+#include "runtime/lua/LuaValueBridge.h"
 #include "support/SourceSpan.h"
 
 namespace {

@@ -1,6 +1,6 @@
 #include "TestHarness.h"
 
-#include "runtime/BuiltinRegistry.h"
+#include "runtime/expression/BuiltinRegistry.h"
 
 #include <filesystem>
 

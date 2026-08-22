@@ -1,7 +1,7 @@
 #include "TestHarness.h"
 
 #include "datatypes/Data.h"
-#include "runtime/Value.h"
+#include "runtime/core/Value.h"
 
 TEST_CASE(Value_string_falsey_tokens_to_bool_false) {
     REQUIRE(!prebyte::Value(std::string("false")).to_bool());

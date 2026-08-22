@@ -2,7 +2,7 @@
 
 #include "config/VariableDefinitionParser.h"
 
-#include "runtime/FileMetadataCache.h"
+#include "runtime/cache/FileMetadataCache.h"
 
 #include <filesystem>
 #include <fstream>

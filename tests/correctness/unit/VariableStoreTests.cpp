@@ -1,6 +1,6 @@
 #include "TestHarness.h"
 
-#include "runtime/VariableStore.h"
+#include "runtime/core/VariableStore.h"
 
 #include <map>
 #include <string>

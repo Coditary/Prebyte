@@ -1,4 +1,4 @@
-#include "runtime/CompiledTemplateSerializer.h"
+#include "runtime/compiled/CompiledTemplateSerializer.h"
 #include "support/Diagnostic.h"
 
 #include <cstddef>

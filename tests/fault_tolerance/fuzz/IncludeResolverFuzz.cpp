@@ -1,7 +1,7 @@
 #include "config/ConfigTypes.h"
 #include "support/FuzzRuntimeReset.h"
-#include "runtime/IncludeResolver.h"
-#include "runtime/RenderSession.h"
+#include "runtime/resolution/IncludeResolver.h"
+#include "runtime/core/RenderSession.h"
 #include "support/Diagnostic.h"
 #include "support/FuzzTempDir.h"
 

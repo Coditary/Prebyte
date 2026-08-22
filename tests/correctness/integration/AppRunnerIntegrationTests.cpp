@@ -9,8 +9,8 @@
 #include "app/AppRunner.h"
 #include "app/Command.h"
 #include "io/InputBuffer.h"
-#include "runtime/CompiledTemplateCompiler.h"
-#include "runtime/CompiledTemplateSerializer.h"
+#include "runtime/compiled/CompiledTemplateCompiler.h"
+#include "runtime/compiled/CompiledTemplateSerializer.h"
 #include "support/Diagnostic.h"
 
 namespace {

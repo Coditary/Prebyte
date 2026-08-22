@@ -2,8 +2,8 @@
 
 #include "config/ProfileMerger.h"
 #include "config/SettingsLoader.h"
-#include "runtime/FileMetadataCache.h"
-#include "runtime/IncludeResolver.h"
+#include "runtime/cache/FileMetadataCache.h"
+#include "runtime/resolution/IncludeResolver.h"
 #include "support/Diagnostic.h"
 
 #include <filesystem>

@@ -1,6 +1,6 @@
 #include "TestHarness.h"
 
-#include "runtime/FilterRegistry.h"
+#include "runtime/expression/FilterRegistry.h"
 #include "support/Diagnostic.h"
 
 TEST_CASE(FilterRegistry_apply_string_filters_and_default) {

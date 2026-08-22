@@ -2,8 +2,8 @@
 
 #include "PrebyteEngine.h"
 #include "io/InputBuffer.h"
-#include "runtime/CompiledTemplateCompiler.h"
-#include "runtime/CompiledTemplateSerializer.h"
+#include "runtime/compiled/CompiledTemplateCompiler.h"
+#include "runtime/compiled/CompiledTemplateSerializer.h"
 #include "support/Diagnostic.h"
 
 #include <atomic>

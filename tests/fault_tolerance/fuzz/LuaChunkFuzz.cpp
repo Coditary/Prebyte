@@ -1,5 +1,5 @@
 #include "config/ConfigTypes.h"
-#include "runtime/LuaRuntime.h"
+#include "runtime/lua/LuaRuntime.h"
 #include "support/Diagnostic.h"
 #include "support/FuzzTempDir.h"
 #include "support/SourceSpan.h"

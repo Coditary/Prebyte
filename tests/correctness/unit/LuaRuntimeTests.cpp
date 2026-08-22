@@ -1,7 +1,7 @@
 #include "TestHarness.h"
 
 #include "datatypes/Data.h"
-#include "runtime/LuaRuntime.h"
+#include "runtime/lua/LuaRuntime.h"
 #include "support/Diagnostic.h"
 #include "support/SourceSpan.h"
 

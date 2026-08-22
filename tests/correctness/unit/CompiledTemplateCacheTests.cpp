@@ -1,9 +1,9 @@
 #include "TestHarness.h"
 
-#include "runtime/CompiledTemplateCache.h"
-#include "runtime/CompiledTemplateCompiler.h"
-#include "runtime/CompiledTemplateSerializer.h"
-#include "runtime/FileMetadataCache.h"
+#include "runtime/compiled/CompiledTemplateCache.h"
+#include "runtime/compiled/CompiledTemplateCompiler.h"
+#include "runtime/compiled/CompiledTemplateSerializer.h"
+#include "runtime/cache/FileMetadataCache.h"
 
 #include <chrono>
 #include <filesystem>

@@ -2,7 +2,7 @@
 
 #include "datatypes/Data.h"
 #include "parser/FileParser.h"
-#include "runtime/FileMetadataCache.h"
+#include "runtime/cache/FileMetadataCache.h"
 #include "support/Diagnostic.h"
 #include "support/FileUtil.h"
 
