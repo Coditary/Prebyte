@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include <cctype>
 #include <cstdlib>
 
 namespace prebyte {
@@ -84,12 +85,31 @@ bool path_is_directory(const std::filesystem::path& path) {
 constexpr std::size_t kMaxIncludePathLength = 4096;
 constexpr std::size_t kMaxIncludePathSeparators = 64;
 
+bool is_absolute_include_path(std::string_view include_path) {
+    if (include_path.empty()) {
+        return false;
+    }
+    const std::filesystem::path path(include_path);
+    if (path.is_absolute()) {
+        return true;
+    }
+    if (include_path.front() == '/' || include_path.front() == '\\') {
+        return true;
+    }
+#if defined(_WIN32)
+    if (include_path.size() >= 2 && std::isalpha(static_cast<unsigned char>(include_path[0])) && include_path[1] == ':') {
+        return true;
+    }
+#endif
+    return false;
+}
+
 void validate_include_path(const std::string& include_path, const RenderSession& session) {
     if (include_path.size() > kMaxIncludePathLength) {
         throw DiagnosticError(make_include_error("Include path is too long", include_path, session));
     }
 
-    if (std::filesystem::path(include_path).is_absolute()) {
+    if (is_absolute_include_path(include_path)) {
         throw DiagnosticError(make_include_error("Absolute include paths are not allowed", include_path, session));
     }
 
@@ -322,7 +342,7 @@ ResolvedInclude IncludeResolver::load(const std::string& include_path, const std
         }
     }
 
-    if (std::filesystem::path(include_path).is_absolute()) {
+    if (is_absolute_include_path(include_path)) {
         throw DiagnosticError(make_include_error("Absolute include paths are not allowed", include_path, session));
     } else {
         for (const std::filesystem::path& root : include_roots(include_path, current_file, settings)) {

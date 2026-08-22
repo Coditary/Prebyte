@@ -196,6 +196,20 @@ std::wstring build_windows_command_line(const std::filesystem::path& executable,
     return to_wide(command);
 }
 
+std::string normalize_process_output(std::string text) {
+    std::string normalized;
+    normalized.reserve(text.size());
+    for (std::size_t index = 0; index < text.size(); ++index) {
+        if (text[index] == '\r' && index + 1 < text.size() && text[index + 1] == '\n') {
+            normalized.push_back('\n');
+            ++index;
+            continue;
+        }
+        normalized.push_back(text[index]);
+    }
+    return normalized;
+}
+
 std::string read_windows_pipe(HANDLE handle) {
     std::string output;
     std::array<char, 4096> buffer{};
@@ -207,7 +221,7 @@ std::string read_windows_pipe(HANDLE handle) {
         }
         output.append(buffer.data(), bytes_read);
     }
-    return output;
+    return normalize_process_output(std::move(output));
 }
 
 ProcessResult run_cli_windows(const std::filesystem::path& executable, const std::vector<std::string>& args,

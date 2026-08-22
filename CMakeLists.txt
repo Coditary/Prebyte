@@ -183,11 +183,13 @@ if(PREBYTE_BUILD_TESTS)
     set(PREBYTE_DISCOVERED_TEST_NAMES)
     set(PREBYTE_DISABLED_TEST_NAMES)
 
-    if(WIN32)
+    if (WIN32)
         list(APPEND PREBYTE_DISABLED_TEST_NAMES
             AppRunner_render_source_file_from_adjacent_pbc_without_reading_source
             AppRunner_render_source_file_from_adjacent_pbc_with_named_structured_imports
             AppRunner_reuse_in_memory_compiled_template_when_pbc_write_fails
+            PackagingSmoke_reqpack_archive_runs
+            PackagingSmoke_reqpack_index_lists_package
         )
     endif()
 

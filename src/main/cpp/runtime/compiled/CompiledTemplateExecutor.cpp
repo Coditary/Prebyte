@@ -660,10 +660,10 @@ bool CompiledTemplateExecutor::evaluate_condition_bool(const CompiledProgram& pr
             const std::string_view name = data_view(program, cond.data_offset, cond.data_length);
             if (cond.opcode == ExpressionOpcode::LoadVar && name != "ARGS" && !name.contains('.')
                 && can_fast_path_variable_lookup(settings, session)) {
-                if (const Value* value = session.lookup_scoped_value(name, true)) {
+                if (const Value* value = session.lookup_scoped_value(name, settings.case_sensitive_variables)) {
                     return value->to_bool();
                 }
-                if (const Value* value = session.variables_view().get_value(name, true)) {
+                if (const Value* value = session.variables_view().get_value(name, settings.case_sensitive_variables)) {
                     return value->to_bool();
                 }
                 return false;
@@ -697,13 +697,13 @@ Value CompiledTemplateExecutor::evaluate_expression(const CompiledProgram& progr
             const std::string_view name = data_view(program, op.data_offset, op.data_length);
             if (op.opcode == ExpressionOpcode::LoadVar && name != "ARGS" && !name.contains('.')
                 && can_fast_path_variable_lookup(settings, session)) {
-                if (const Value* value = session.lookup_scoped_value(name, true)) {
+                if (const Value* value = session.lookup_scoped_value(name, settings.case_sensitive_variables)) {
                     if (const auto string_value = value->try_as_string_view()) {
                         return Value::borrowed(*string_value);
                     }
                     return *value;
                 }
-                if (const Value* value = session.variables_view().get_value(name, true)) {
+                if (const Value* value = session.variables_view().get_value(name, settings.case_sensitive_variables)) {
                     if (const auto string_value = value->try_as_string_view()) {
                         return Value::borrowed(*string_value);
                     }
@@ -789,7 +789,7 @@ Value CompiledTemplateExecutor::evaluate_expression(const CompiledProgram& progr
             const std::string_view name = data_view(program, op.data_offset, op.data_length);
             if (op.opcode == ExpressionOpcode::LoadVar && name != "ARGS" && !name.contains('.')
                 && can_fast_path_variable_lookup(settings, session)) {
-                if (const Value* value = session.lookup_scoped_value(name, true)) {
+                if (const Value* value = session.lookup_scoped_value(name, settings.case_sensitive_variables)) {
                     if (const auto string_value = value->try_as_string_view()) {
                         stack.push_back(Value::borrowed(*string_value));
                     } else {
@@ -1041,7 +1041,11 @@ Value CompiledTemplateExecutor::call_function(const RenderSession::FunctionDefin
     ++session.function_call_depth;
     session.push_local_scope();
     for (std::size_t index = 0; index < active_function.parameters.size(); ++index) {
-        session.set_local_value(active_function.parameters[index], std::move(arguments[index]));
+        Value argument = std::move(arguments[index]);
+        if (const auto string_value = argument.try_as_string_view()) {
+            argument = Value(std::string(*string_value));
+        }
+        session.set_local_value(active_function.parameters[index], std::move(argument));
     }
 
     try {

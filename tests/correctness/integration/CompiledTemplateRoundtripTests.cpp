@@ -15,6 +15,7 @@
 #include "support/Diagnostic.h"
 
 #include <filesystem>
+#include <chrono>
 #include <fstream>
 
 namespace {
@@ -33,6 +34,11 @@ void write_file(const std::filesystem::path& path, const std::string& content) {
     std::filesystem::create_directories(path.parent_path());
     std::ofstream file(path, std::ios::binary);
     file << content;
+}
+
+void touch_file(const std::filesystem::path& path) {
+    const auto current = std::filesystem::last_write_time(path);
+    std::filesystem::last_write_time(path, current + std::chrono::seconds(1));
 }
 
 std::string read_file(const std::filesystem::path& path) {
@@ -217,6 +223,7 @@ TEST_CASE(CompiledTemplateRoundtrip_modified_source_recompiles_when_dependency_i
     REQUIRE_EQ(app_runner_render_file(compiled_path), std::string("Hello Ada"));
 
     write_file(source_path, updated_source);
+    touch_file(source_path);
 
     RoundtripHarness harness;
     const prebyte::CompiledProgram stale_program =

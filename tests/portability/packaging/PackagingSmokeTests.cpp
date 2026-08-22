@@ -15,6 +15,7 @@
 
 namespace {
 
+#ifndef _WIN32
 std::string shell_quote(const std::string& value) {
     std::string quoted = "'";
     for (char ch : value) {
@@ -27,17 +28,38 @@ std::string shell_quote(const std::string& value) {
     quoted.push_back('\'');
     return quoted;
 }
+#else
+std::string windows_quote(const std::string& value) {
+    std::string quoted = "\"";
+    for (char ch : value) {
+        if (ch == '"') {
+            quoted += "\\\"";
+        } else {
+            quoted.push_back(ch);
+        }
+    }
+    quoted.push_back('"');
+    return quoted;
+}
+#endif
 
 int run_packaging_smoke(const std::vector<std::string>& checks) {
     const std::filesystem::path repo_root = prebyte::test::cli_working_directory();
     const std::filesystem::path binary = prebyte::test::cli_binary_path();
+    const std::filesystem::path script_path = repo_root / "scripts" / "ci" / "smoke_packaging.py";
 
     std::ostringstream command;
-    command << "python3 " << shell_quote((repo_root / "scripts" / "ci" / "smoke_packaging.py").string())
-            << " --binary " << shell_quote(binary.string());
+#ifdef _WIN32
+    command << "python " << windows_quote(script_path.string()) << " --binary " << windows_quote(binary.string());
+    for (const std::string& check : checks) {
+        command << " --checks " << windows_quote(check);
+    }
+#else
+    command << "python3 " << shell_quote(script_path.string()) << " --binary " << shell_quote(binary.string());
     for (const std::string& check : checks) {
         command << " --checks " << shell_quote(check);
     }
+#endif
 
     const int status = std::system(command.str().c_str());
     if (status == -1) {

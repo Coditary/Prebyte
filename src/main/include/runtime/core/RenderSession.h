@@ -228,7 +228,7 @@ struct RenderSession {
 
     static const Value* local_scope_value(const LocalScopeFrame& frame, std::string_view name, bool case_sensitive) {
         if (case_sensitive) {
-            auto it = frame.values.find(name);
+            auto it = frame.values.find(std::string(name));
             return it == frame.values.end() ? nullptr : &it->second;
         }
         for (const auto& [candidate, value] : frame.values) {
@@ -242,7 +242,7 @@ struct RenderSession {
     static const FunctionDefinition* function_scope_value(const FunctionScopeFrame& frame,
                                                           std::string_view name, bool case_sensitive) {
         if (case_sensitive) {
-            auto it = frame.values.find(name);
+            auto it = frame.values.find(std::string(name));
             return it == frame.values.end() ? nullptr : &it->second;
         }
         for (const auto& [candidate, value] : frame.values) {
