@@ -17,6 +17,8 @@ option(PREBYTE_ENABLE_COVERAGE "Enable GCC/GCov coverage instrumentation" OFF)
 option(PREBYTE_ENABLE_SANITIZERS "Enable Clang sanitizer instrumentation" OFF)
 set(PREBYTE_SANITIZERS "address,undefined"
     CACHE STRING "Comma-separated Clang sanitizers: address, undefined, thread, memory")
+set(PREBYTE_MSAN_LIBCXX_PREFIX ""
+    CACHE PATH "Install prefix of a MemorySanitizer-instrumented libc++ (required for reliable MSan runs)")
 
 find_package(Lua REQUIRED)
 
@@ -121,13 +123,32 @@ if(PREBYTE_ENABLE_SANITIZERS)
     endif()
 
     set(PREBYTE_SANITIZER_COMPILE_OPTIONS -fsanitize=${PREBYTE_SANITIZERS} -fno-omit-frame-pointer -g)
+    set(PREBYTE_SANITIZER_LINK_OPTIONS -fsanitize=${PREBYTE_SANITIZERS})
     if(PREBYTE_HAS_MEMORY_SANITIZER)
         list(APPEND PREBYTE_SANITIZER_COMPILE_OPTIONS -fsanitize-memory-track-origins=1)
+        if(PREBYTE_MSAN_LIBCXX_PREFIX STREQUAL "")
+            message(WARNING "PREBYTE_MSAN_LIBCXX_PREFIX is unset; MSan runs may report false positives from uninstrumented libstdc++")
+        elseif(NOT EXISTS "${PREBYTE_MSAN_LIBCXX_PREFIX}/include/c++/v1/string")
+            message(FATAL_ERROR "PREBYTE_MSAN_LIBCXX_PREFIX does not contain libc++ headers: ${PREBYTE_MSAN_LIBCXX_PREFIX}")
+        else()
+            list(APPEND PREBYTE_SANITIZER_COMPILE_OPTIONS
+                -stdlib=libc++
+                -nostdinc++
+                -isystem "${PREBYTE_MSAN_LIBCXX_PREFIX}/include/c++/v1")
+            link_directories("${PREBYTE_MSAN_LIBCXX_PREFIX}/lib")
+            list(APPEND PREBYTE_SANITIZER_LINK_OPTIONS
+                -stdlib=libc++
+                "LINKER:-rpath,${PREBYTE_MSAN_LIBCXX_PREFIX}/lib"
+                -lc++
+                -lc++abi
+                -lunwind)
+        endif()
     endif()
-    set(PREBYTE_SANITIZER_LINK_OPTIONS -fsanitize=${PREBYTE_SANITIZERS})
 
     add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:${PREBYTE_SANITIZER_COMPILE_OPTIONS}>")
     add_link_options(${PREBYTE_SANITIZER_LINK_OPTIONS})
+    target_compile_options(prebyte_core PUBLIC ${PREBYTE_SANITIZER_COMPILE_OPTIONS})
+    target_link_options(prebyte_core PUBLIC ${PREBYTE_SANITIZER_LINK_OPTIONS})
 endif()
 
 add_executable(prebyte src/main/cpp/main.cpp)

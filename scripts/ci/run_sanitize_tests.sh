@@ -43,6 +43,9 @@ case "$SANITIZER_KIND" in
         TEST_PRESET="${SANITIZE_TEST_PRESET:-msan}"
         unset ASAN_OPTIONS UBSAN_OPTIONS TSAN_OPTIONS
         export MSAN_OPTIONS="${MSAN_OPTIONS:-halt_on_error=1:print_stats=1}"
+        export PREBYTE_MSAN_LIBCXX_PREFIX="${PREBYTE_MSAN_LIBCXX_PREFIX:-${XDG_CACHE_HOME:-$HOME/.cache}/prebyte-msan-libcxx}"
+        chmod +x "$ROOT/scripts/ci/bootstrap_msan_libcxx.sh"
+        "$ROOT/scripts/ci/bootstrap_msan_libcxx.sh"
         ;;
     *)
         usage >&2
@@ -50,8 +53,13 @@ case "$SANITIZER_KIND" in
         ;;
 esac
 
-if [[ ! -f "$BUILD_DIR/CMakeCache.txt" ]]; then
-    cmake --preset "$CMAKE_PRESET" "$@"
+CMAKE_EXTRA_ARGS=("$@")
+if [[ "$SANITIZER_KIND" == "msan" ]]; then
+    CMAKE_EXTRA_ARGS=(-DPREBYTE_MSAN_LIBCXX_PREFIX="$PREBYTE_MSAN_LIBCXX_PREFIX" "$@")
+fi
+
+if [[ "$SANITIZER_KIND" == "msan" ]] || [[ ! -f "$BUILD_DIR/CMakeCache.txt" ]]; then
+    cmake --preset "$CMAKE_PRESET" "${CMAKE_EXTRA_ARGS[@]}"
 fi
 
 cmake --build --preset "$BUILD_PRESET" --parallel

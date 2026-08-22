@@ -23,7 +23,7 @@ make all           # full local validation
 make start         # build CLI only
 make sanitize      # ASan/UBSan over the full test binary
 make tsan          # ThreadSanitizer
-make msan          # MemorySanitizer
+make msan          # MemorySanitizer (bootstraps instrumented libc++ first; see fault_tolerance/sanitizers/README.md)
 make fuzz          # libFuzzer targets under fault_tolerance/fuzz/
 make benchmark     # performance/BenchmarkMain.cpp
 make packaging-smoke

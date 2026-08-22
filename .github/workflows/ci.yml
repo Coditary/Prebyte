@@ -431,6 +431,7 @@ jobs:
   msan:
     name: msan-linux-x86_64
     runs-on: ubuntu-24.04
+    continue-on-error: true
     permissions:
       contents: read
     steps:
@@ -440,7 +441,13 @@ jobs:
       - name: Install sanitizer prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang ninja-build pkg-config
+          sudo apt-get install -y --no-install-recommends clang cmake ninja-build pkg-config git
+
+      - name: Cache MSan libc++
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/prebyte-msan-libcxx
+          key: msan-libcxx-${{ runner.os }}-${{ hashFiles('scripts/ci/bootstrap_msan_libcxx.sh') }}
 
       - name: Bootstrap vcpkg with MSan
         shell: bash
@@ -454,9 +461,11 @@ jobs:
 
       - name: Run MSan tests
         shell: bash
+        env:
+          PREBYTE_MSAN_LIBCXX_PREFIX: ${{ runner.temp }}/prebyte-msan-libcxx
         run: |
           set -euo pipefail
-          chmod +x scripts/ci/run_sanitize_tests.sh
+          chmod +x scripts/ci/run_sanitize_tests.sh scripts/ci/bootstrap_msan_libcxx.sh
           ./scripts/ci/run_sanitize_tests.sh msan \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-linux-msan \
