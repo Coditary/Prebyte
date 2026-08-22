@@ -374,11 +374,13 @@ def main() -> int:
     dist_dir = args.dist_dir
     temp_dist: tempfile.TemporaryDirectory[str] | None = None
     if dist_dir is None:
-        temp_dist = tempfile.TemporaryDirectory(prefix="prebyte-packaging-smoke-", dir=root / "dist")
+        dist_parent = root / "dist"
+        dist_parent.mkdir(parents=True, exist_ok=True)
+        temp_dist = tempfile.TemporaryDirectory(prefix="prebyte-packaging-smoke-", dir=dist_parent)
         dist_dir = Path(temp_dist.name)
     else:
         dist_dir = dist_dir.resolve()
-    dist_dir.mkdir(parents=True, exist_ok=True)
+        dist_dir.mkdir(parents=True, exist_ok=True)
 
     try:
         if "binary" in args.checks:
