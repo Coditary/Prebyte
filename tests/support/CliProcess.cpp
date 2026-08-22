@@ -20,6 +20,8 @@ namespace prebyte::test {
 
 namespace {
 
+#ifndef _WIN32
+
 std::string read_pipe_data(int fd) {
     std::string output;
     std::array<char, 4096> buffer{};
@@ -32,8 +34,6 @@ std::string read_pipe_data(int fd) {
     }
     return output;
 }
-
-#ifndef _WIN32
 
 void apply_extra_env(const std::map<std::string, std::string>& extra_env) {
     for (const auto& [name, value] : extra_env) {
