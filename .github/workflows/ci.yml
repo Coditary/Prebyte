@@ -176,11 +176,33 @@ jobs:
           set -euo pipefail
           ctest --test-dir build --output-on-failure
 
+      - name: Packaging smoke (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/smoke_packaging.py
+          python3 scripts/ci/smoke_packaging.py \
+            --binary build/prebyte \
+            --platform "${{ matrix.platform }}" \
+            --arch "${{ matrix.arch }}" \
+            --checks binary reqpack index
+
       - name: Test (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           ctest --test-dir build --output-on-failure
+
+      - name: Packaging smoke (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python scripts/ci/smoke_packaging.py `
+            --binary build/prebyte.exe `
+            --platform windows `
+            --arch ${{ matrix.arch }} `
+            --checks binary
 
       - name: Package release artifact (Unix)
         if: startsWith(github.ref, 'refs/tags/v') && runner.os != 'Windows'
@@ -276,13 +298,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gcovr \
-            --root "$GITHUB_WORKSPACE" \
-            --object-directory "$GITHUB_WORKSPACE/build-cmake/coverage" \
-            --filter "$GITHUB_WORKSPACE/src/main/cpp" \
-            --gcov-ignore-parse-errors=negative_hits.warn \
-            --xml-pretty \
-            --output build-cmake/coverage/coverage.xml
+          chmod +x scripts/ci/generate_coverage_report.sh
+          COVERAGE_MIN_LINE=85 ./scripts/ci/generate_coverage_report.sh
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
@@ -299,6 +316,186 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
           verbose: true
+
+  clang-tidy:
+    name: clang-tidy-linux-x86_64
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install clang-tidy prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang clang-tidy ninja-build pkg-config
+
+      - name: Bootstrap vcpkg
+        shell: bash
+        run: |
+          set -euo pipefail
+          VCPKG_ROOT="$RUNNER_TEMP/vcpkg"
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
+          "$VCPKG_ROOT/vcpkg" install "lua:x64-linux"
+
+      - name: Run clang-tidy analyze
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/run_clang_tidy.sh
+          ./scripts/ci/run_clang_tidy.sh analyze \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux
+
+      - name: Run clang-tidy lint
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/ci/run_clang_tidy.sh lint
+
+      - name: Run clang-tidy security
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./scripts/ci/run_clang_tidy.sh security
+
+  sanitize:
+    name: asan-ubsan-linux-x86_64
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install sanitizer prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang ninja-build pkg-config
+
+      - name: Bootstrap vcpkg
+        shell: bash
+        run: |
+          set -euo pipefail
+          VCPKG_ROOT="$RUNNER_TEMP/vcpkg"
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
+          "$VCPKG_ROOT/vcpkg" install "lua:x64-linux"
+
+      - name: Run ASan/UBSan tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/run_sanitize_tests.sh
+          ./scripts/ci/run_sanitize_tests.sh asan \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux
+
+  tsan:
+    name: tsan-linux-x86_64
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install sanitizer prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang ninja-build pkg-config
+
+      - name: Bootstrap vcpkg
+        shell: bash
+        run: |
+          set -euo pipefail
+          VCPKG_ROOT="$RUNNER_TEMP/vcpkg"
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
+          "$VCPKG_ROOT/vcpkg" install "lua:x64-linux"
+
+      - name: Run TSan tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/run_sanitize_tests.sh
+          ./scripts/ci/run_sanitize_tests.sh tsan \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux
+
+  msan:
+    name: msan-linux-x86_64
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install sanitizer prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang ninja-build pkg-config
+
+      - name: Bootstrap vcpkg with MSan
+        shell: bash
+        env:
+          VCPKG_ROOT: ${{ runner.temp }}/vcpkg
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/bootstrap_vcpkg_lua.sh
+          ./scripts/ci/bootstrap_vcpkg_lua.sh msan
+          echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
+
+      - name: Run MSan tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/run_sanitize_tests.sh
+          ./scripts/ci/run_sanitize_tests.sh msan \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux-msan \
+            -DVCPKG_OVERLAY_TRIPLETS="$GITHUB_WORKSPACE/cmake/vcpkg/triplets"
+
+  fuzz:
+    name: fuzz-linux-x86_64
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install fuzzer prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang ninja-build pkg-config
+
+      - name: Bootstrap vcpkg
+        shell: bash
+        run: |
+          set -euo pipefail
+          VCPKG_ROOT="$RUNNER_TEMP/vcpkg"
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$VCPKG_ROOT" >> "$GITHUB_ENV"
+          "$VCPKG_ROOT/vcpkg" install "lua:x64-linux"
+
+      - name: Run fuzzers
+        shell: bash
+        env:
+          PREBYTE_FUZZ_MAX_TOTAL_TIME: 60
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/run_fuzzers.sh
+          ./scripts/ci/run_fuzzers.sh \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -375,6 +572,15 @@ jobs:
           set -euo pipefail
           docker buildx create --name prebyte-builder --use
           docker buildx inspect --bootstrap
+
+      - name: Docker packaging smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/smoke_packaging.py
+          python3 scripts/ci/smoke_packaging.py \
+            --checks docker \
+            --version "${{ steps.meta.outputs.version }}"
 
       - name: Build and push Docker image
         shell: bash

@@ -80,6 +80,17 @@ cat input.txt | docker run --rm -i ghcr.io/coditary/prebyte:latest
 
 ## Test
 
+Full local validation (coverage, packaging, benchmarks, sanitizers, fuzzers, optional Docker):
+
+```bash
+make
+# or explicitly:
+make all
+make ci-full
+```
+
+Quick test run only:
+
 ```bash
 make test
 ```
@@ -89,6 +100,8 @@ Or with CMake:
 ```bash
 ctest --preset dev
 ```
+
+`make` / `make all` runs the full local check suite via `scripts/ci/run_all_checks.sh` (expect 30–60+ minutes). Use `make start` to build the CLI only.
 
 On Windows, prefer `cmake --build --preset dev --target prebyte_tests` then `ctest --preset dev`.
 
@@ -100,7 +113,7 @@ make benchmark
 
 `make benchmark` runs:
 
-1. internal Prebyte benchmark history update in `tests/benchmarks/history.md`
+1. internal Prebyte benchmark history update in `tests/performance/history.md`
 2. Prebyte vs Go `text/template` and Rust Askama comparison from `tools/benchmark_compare/`
 
 Cross-engine comparison is a **manual local tool** (not run in CI). Case names and iteration counts live in `tools/benchmark_compare/manifest.json`; reports append to `tools/benchmark_compare/history.md`.
@@ -137,7 +150,7 @@ Prebyte supports multithreaded rendering: `Engine::render()` is safe across thre
 
 The Askama benchmark requires Rust/Cargo (`cargo build` in `tools/benchmark_compare/`).
 
-Benchmark history: `tests/benchmarks/history.md` (internal), `tools/benchmark_compare/history.md` (cross-engine).
+Benchmark history: `tests/performance/history.md` (internal), `tools/benchmark_compare/history.md` (cross-engine).
 
 ## CLI
 
@@ -545,11 +558,15 @@ Current implementation is split into focused modules:
 
 ## Tests And Fixtures
 
-Tests live in:
+Tests are grouped by non-functional requirement under `tests/`. See `tests/README.md` for the layout.
 
-1. `tests/unit/`
-2. `tests/integration/`
+Main buckets:
+
+1. `tests/correctness/unit/`
+2. `tests/correctness/integration/`
 3. `tests/fixtures/`
+
+Other NFR folders: `fault_tolerance/`, `security/`, `concurrency/`, `portability/`, `performance/`.
 
 ## License
 

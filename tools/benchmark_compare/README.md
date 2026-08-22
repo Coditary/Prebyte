@@ -86,6 +86,6 @@ mode:case<TAB>microseconds_per_render_or_entry
 
 ## Internal history
 
-`make benchmark` appends single-render and batch CLI timings to `tests/benchmarks/history.md` via `tests/BenchmarkMain.cpp`.
+`make benchmark` appends single-render and batch CLI timings to `tests/performance/history.md` via `tests/performance/BenchmarkMain.cpp`.
 
 `make compare-benchmark` appends cross-engine reports to `tools/benchmark_compare/history.md`.

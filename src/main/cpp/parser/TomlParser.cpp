@@ -1,10 +1,9 @@
 #include "parser/TomlParser.h"
 
+#include "support/FileUtil.h"
 #include "support/TextUtil.h"
 
 #include <cctype>
-#include <fstream>
-#include <iterator>
 #include <sstream>
 
 namespace prebyte {
@@ -39,7 +38,10 @@ bool is_double_token(std::string_view value) {
         && is_integer_token(value.substr(dot + 1));
 }
 
-Data parse_toml_value(const std::string& raw) {
+constexpr std::size_t kMaxTomlNestingDepth = 128;
+constexpr std::size_t kMaxTomlArrayDepth = 64;
+
+Data parse_toml_value(const std::string& raw, std::size_t array_depth = 0) {
     const std::string value = text::trim(raw);
     if (value == "true") {
         return Data(true);
@@ -51,12 +53,15 @@ Data parse_toml_value(const std::string& raw) {
         return Data(value.substr(1, value.size() - 2));
     }
     if (value.size() >= 2 && value.front() == '[' && value.back() == ']') {
+        if (array_depth >= kMaxTomlArrayDepth) {
+            throw std::runtime_error("TOML array nesting is too deep");
+        }
         Data::Array array;
         const std::string inner = value.substr(1, value.size() - 2);
         for (const std::string& item : text::split(inner, ',')) {
             const std::string trimmed = text::trim(item);
             if (!trimmed.empty()) {
-                array.push_back(parse_toml_value(trimmed));
+                array.push_back(parse_toml_value(trimmed, array_depth + 1));
             }
         }
         return Data(std::move(array));
@@ -81,6 +86,9 @@ void ensure_map(Data& data) {
 }
 
 void set_nested_value(Data& root, const std::vector<std::string>& path, const Data& value) {
+    if (path.size() > kMaxTomlNestingDepth) {
+        throw std::runtime_error("TOML nesting is too deep");
+    }
     ensure_map(root);
     Data* current = &root;
     for (std::size_t index = 0; index + 1 < path.size(); ++index) {
@@ -108,18 +116,10 @@ std::string strip_comment(const std::string& line) {
     return result;
 }
 
-std::string read_file(const std::filesystem::path& path) {
-    std::ifstream stream(path);
-    if (!stream) {
-        throw std::runtime_error("Could not open TOML file: " + path.string());
-    }
-    return std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
-}
-
 }
 
 Data TomlParser::parse(const std::filesystem::path& filepath) {
-    return parse_string(read_file(filepath));
+    return parse_string(file_util::read_text_file(filepath));
 }
 
 bool TomlParser::can_parse(const std::filesystem::path& filepath) const {

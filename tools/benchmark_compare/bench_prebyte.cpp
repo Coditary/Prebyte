@@ -24,14 +24,14 @@
 #include "io/InputBuffer.h"
 #include "io/InputReader.h"
 #include "parser/JsonParser.h"
-#include "runtime/BuiltinRegistry.h"
-#include "runtime/CompiledTemplateCompiler.h"
-#include "runtime/CompiledTemplateSerializer.h"
-#include "runtime/ExpressionEvaluator.h"
-#include "runtime/IncludeResolver.h"
-#include "runtime/Renderer.h"
-#include "runtime/RenderSession.h"
-#include "runtime/VariableStore.h"
+#include "runtime/expression/BuiltinRegistry.h"
+#include "runtime/compiled/CompiledTemplateCompiler.h"
+#include "runtime/compiled/CompiledTemplateSerializer.h"
+#include "runtime/expression/ExpressionEvaluator.h"
+#include "runtime/resolution/IncludeResolver.h"
+#include "runtime/render/Renderer.h"
+#include "runtime/core/RenderSession.h"
+#include "runtime/core/VariableStore.h"
 
 namespace {
 

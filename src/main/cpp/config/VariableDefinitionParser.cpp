@@ -2,10 +2,10 @@
 
 #include "datatypes/Data.h"
 #include "parser/FileParser.h"
-#include "runtime/FileMetadataCache.h"
+#include "runtime/cache/FileMetadataCache.h"
 #include "support/Diagnostic.h"
+#include "support/FileUtil.h"
 
-#include <fstream>
 #include <iterator>
 #include <map>
 #include <mutex>
@@ -22,11 +22,7 @@ Diagnostic make_variable_error(const std::string& message) {
 }
 
 std::string read_file(const std::filesystem::path& path) {
-    std::ifstream stream(path);
-    if (!stream) {
-        throw DiagnosticError(make_variable_error("Cannot open file for variable import: " + path.string()));
-    }
-    return std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
+    return file_util::read_text_file(path);
 }
 
 Value data_to_value(const Data& data) {
@@ -71,6 +67,11 @@ public:
         cache_[normalized] = StructuredImportCacheEntry{.mtime_ticks = metadata.mtime_ticks, .value = std::move(value)};
     }
 
+    void clear() {
+        std::lock_guard lock(mutex_);
+        cache_.clear();
+    }
+
 private:
     static std::filesystem::path normalize(const std::filesystem::path& path) {
         if (path.empty()) {
@@ -91,6 +92,10 @@ private:
     std::map<std::filesystem::path, StructuredImportCacheEntry> cache_;
 };
 
+}
+
+void VariableDefinitionParser::clear_import_cache() {
+    StructuredImportCache::instance().clear();
 }
 
 VariableContext VariableDefinitionParser::parse(const std::vector<std::string>& define_args,

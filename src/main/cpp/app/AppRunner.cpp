@@ -7,11 +7,11 @@
 #include "config/VariableDefinitionParser.h"
 #include "io/InputReader.h"
 #include "io/OutputWriter.h"
-#include "runtime/BuiltinRegistry.h"
-#include "runtime/CompiledTemplateSerializer.h"
-#include "runtime/IncludeResolver.h"
-#include "runtime/LuaHelperRegistry.h"
-#include "runtime/Renderer.h"
+#include "runtime/expression/BuiltinRegistry.h"
+#include "runtime/compiled/CompiledTemplateSerializer.h"
+#include "runtime/resolution/IncludeResolver.h"
+#include "runtime/lua/LuaHelperRegistry.h"
+#include "runtime/render/Renderer.h"
 #include "support/TextUtil.h"
 #include "support/Version.h"
 
@@ -152,6 +152,9 @@ RenderReport AppRunner::render_report(const Command& command) const {
     session.ignore_names_ref = &variable_context.ignore_names;
     session.effective_settings_cache_ref = &effective_settings_cache;
     session.start_time = start_time;
+    if (command.input_path.has_value()) {
+        session.include_anchor_root = command.input_path->parent_path();
+    }
 
     BuiltinRegistry builtins;
     ExpressionEvaluator expression_engine(builtins);

@@ -6,12 +6,12 @@
 #include "config/VariableDefinitionParser.h"
 #include "io/InputReader.h"
 #include "io/OutputWriter.h"
-#include "runtime/CompiledTemplateCompiler.h"
-#include "runtime/CompiledTemplateCache.h"
-#include "runtime/FileMetadataCache.h"
-#include "runtime/CompiledTemplateSerializer.h"
-#include "runtime/CompiledProgramAnalysis.h"
-#include "runtime/EngineRuntime.h"
+#include "runtime/compiled/CompiledTemplateCompiler.h"
+#include "runtime/compiled/CompiledTemplateCache.h"
+#include "runtime/cache/FileMetadataCache.h"
+#include "runtime/compiled/CompiledTemplateSerializer.h"
+#include "runtime/compiled/CompiledProgramAnalysis.h"
+#include "runtime/render/EngineRuntime.h"
 
 #include <mutex>
 #include <unordered_map>
@@ -237,6 +237,7 @@ struct Prebyte::PreparedState {
         const EffectiveSettings& effective_settings = settings_for(path);
 
         prepare_render_session();
+        render_session.include_anchor_root = path.parent_path();
 
         CompiledTemplateSerializer serializer;
         if (path.extension() == ".pbc") {

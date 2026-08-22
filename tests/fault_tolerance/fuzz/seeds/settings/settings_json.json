@@ -1,0 +1,21 @@
+{
+  "variables": {"name": "Ada", "empty": null},
+  "include_paths": ["includes/a", "includes/b"],
+  "ignore": ["secret", "token"],
+  "rules": {"trim": "true", "default_variable_value": null},
+  "file_rules": {
+    ".md": {"trim": "true"},
+    "README.md": {"default_variable_value": "Fallback"}
+  },
+  "profiles": {
+    "dev": {
+      "variables": {"mode": "debug"},
+      "include_paths": ["profile/includes"],
+      "ignore": ["profile-secret"],
+      "rules": {"strict_variables": "true"},
+      "file_rules": {
+        ".txt": {"default_variable_value": "ProfileFallback"}
+      }
+    }
+  }
+}

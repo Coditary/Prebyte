@@ -28,6 +28,82 @@
         "PREBYTE_BUILD_BENCHMARKS": "OFF",
         "PREBYTE_ENABLE_COVERAGE": "ON"
       }
+    },
+    {
+      "name": "tidy",
+      "displayName": "Clang-Tidy Ninja",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build-cmake/tidy",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_CXX_SCAN_FOR_MODULES": "OFF",
+        "PREBYTE_BUILD_TESTS": "OFF",
+        "PREBYTE_BUILD_BENCHMARKS": "OFF"
+      }
+    },
+    {
+      "name": "sanitize",
+      "displayName": "Sanitizer Ninja",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build-cmake/sanitize",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_CXX_SCAN_FOR_MODULES": "OFF",
+        "PREBYTE_BUILD_TESTS": "ON",
+        "PREBYTE_BUILD_BENCHMARKS": "OFF",
+        "PREBYTE_ENABLE_SANITIZERS": "ON",
+        "PREBYTE_SANITIZERS": "address,undefined"
+      }
+    },
+    {
+      "name": "tsan",
+      "displayName": "ThreadSanitizer Ninja",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build-cmake/tsan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_CXX_SCAN_FOR_MODULES": "OFF",
+        "PREBYTE_BUILD_TESTS": "ON",
+        "PREBYTE_BUILD_BENCHMARKS": "OFF",
+        "PREBYTE_ENABLE_SANITIZERS": "ON",
+        "PREBYTE_SANITIZERS": "thread"
+      }
+    },
+    {
+      "name": "msan",
+      "displayName": "MemorySanitizer Ninja",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build-cmake/msan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_SCAN_FOR_MODULES": "OFF",
+        "PREBYTE_BUILD_TESTS": "ON",
+        "PREBYTE_BUILD_BENCHMARKS": "OFF",
+        "PREBYTE_ENABLE_SANITIZERS": "ON",
+        "PREBYTE_SANITIZERS": "memory"
+      }
+    },
+    {
+      "name": "fuzz",
+      "displayName": "Fuzzer Ninja",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build-cmake/fuzz",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_CXX_SCAN_FOR_MODULES": "OFF",
+        "PREBYTE_BUILD_TESTS": "OFF",
+        "PREBYTE_BUILD_BENCHMARKS": "OFF",
+        "PREBYTE_BUILD_FUZZERS": "ON",
+        "PREBYTE_ENABLE_SANITIZERS": "ON",
+        "PREBYTE_SANITIZERS": "address,undefined"
+      }
     }
   ],
   "buildPresets": [
@@ -58,6 +134,30 @@
       "name": "coverage-tests",
       "configurePreset": "coverage",
       "targets": ["prebyte_tests"]
+    },
+    {
+      "name": "tidy-core",
+      "configurePreset": "tidy",
+      "targets": ["prebyte_core"]
+    },
+    {
+      "name": "sanitize-tests",
+      "configurePreset": "sanitize",
+      "targets": ["prebyte_tests"]
+    },
+    {
+      "name": "tsan-tests",
+      "configurePreset": "tsan",
+      "targets": ["prebyte_tests"]
+    },
+    {
+      "name": "msan-tests",
+      "configurePreset": "msan",
+      "targets": ["prebyte_tests"]
+    },
+    {
+      "name": "fuzz",
+      "configurePreset": "fuzz"
     }
   ],
   "testPresets": [
@@ -71,6 +171,27 @@
     {
       "name": "coverage",
       "configurePreset": "coverage",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "sanitize",
+      "configurePreset": "sanitize",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "tsan",
+      "configurePreset": "tsan",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "msan",
+      "configurePreset": "msan",
       "output": {
         "outputOnFailure": true
       }

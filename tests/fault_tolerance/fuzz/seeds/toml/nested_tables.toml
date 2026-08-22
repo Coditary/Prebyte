@@ -1,0 +1,7 @@
+[database]
+host = "db.local"
+port = 5432
+
+[database.credentials]
+user = "ada"
+password = "secret"

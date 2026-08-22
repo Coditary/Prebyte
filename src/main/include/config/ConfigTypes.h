@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "runtime/Value.h"
+#include "runtime/core/Value.h"
 
 namespace prebyte {
 
@@ -60,7 +60,7 @@ struct EffectiveSettings {
     std::set<std::string> forbidden_env_vars;
     bool error_on_false_input = false;
     std::size_t lua_instruction_limit = 100000;
-    std::size_t lua_memory_limit_bytes = 4 * 1024 * 1024;
+    std::size_t lua_memory_limit_bytes = 4ULL * 1024ULL * 1024ULL;
     std::size_t max_include_depth = std::numeric_limits<std::size_t>::max();
     std::size_t max_render_time_ms = std::numeric_limits<std::size_t>::max();
     std::size_t max_output_size_bytes = std::numeric_limits<std::size_t>::max();

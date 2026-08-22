@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "config/ConfigTypes.h"
-#include "runtime/Value.h"
+#include "runtime/core/Value.h"
 
 namespace prebyte {
 
@@ -64,8 +64,8 @@ public:
     Engine();
 
     CompiledTemplate compile(std::string_view source,
-                             std::filesystem::path source_path = {},
-                             std::filesystem::path logical_path = {},
+                             const std::filesystem::path& source_path = {},
+                             const std::filesystem::path& logical_path = {},
                              const CompileOptions& options = {}) const;
     CompiledTemplate compile_file(const std::filesystem::path& path,
                                   const CompileOptions& options = {}) const;
@@ -75,7 +75,7 @@ public:
                        const RenderContext& ctx = {},
                        const RenderOptions& opts = {}) const;
     void render_to(const CompiledTemplate& tpl,
-                   ChunkSink sink,
+                   const ChunkSink& sink,
                    const RenderContext& ctx = {},
                    const RenderOptions& opts = {}) const;
 

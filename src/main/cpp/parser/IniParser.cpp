@@ -57,7 +57,7 @@ bool IniParser::can_parse(const std::filesystem::path& filepath) const {
         line.erase(0, line.find_first_not_of(" \t"));
         if (line.empty() || line[0] == ';' || line[0] == '#') continue;
         if (line.front() == '[' && line.back() == ']') return true;
-        if (line.find('=') != std::string::npos) return true;
+        if (line.contains('=')) return true;
     }
 
     return false;

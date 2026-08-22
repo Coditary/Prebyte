@@ -1,0 +1,7 @@
+name: Ada
+roles:
+  - admin
+  - editor
+meta:
+  active: true
+  score: 42

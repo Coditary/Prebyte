@@ -15,7 +15,7 @@ namespace prebyte {
 
 namespace {
 
-constexpr std::size_t mmap_min_size = 16 * 1024;
+constexpr std::size_t mmap_min_size = 16ULL * 1024ULL;
 
 #ifdef __linux__
 std::string read_owned_fd(int fd, std::size_t size) {
